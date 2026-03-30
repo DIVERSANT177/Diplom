@@ -10,9 +10,9 @@ class CreateGeneExpressions < ActiveRecord::Migration[8.0]
       t.timestamps
     end
 
-    add_index :gene_expressions, [:dashboard_id, :gene_id]
-    add_index :gene_expressions, [:dashboard_id, :case_id]
-    add_index :gene_expressions, [:dashboard_id, :case_id, :gene_id],
+    add_index :gene_expressions, [ :dashboard_id, :gene_id ]
+    add_index :gene_expressions, [ :dashboard_id, :case_id ]
+    add_index :gene_expressions, [ :dashboard_id, :case_id, :gene_id ],
               unique: true,
               name: "idx_expression_unique"
   end
