@@ -28,7 +28,24 @@ gem "solid_cache"
 gem "solid_queue"
 gem "solid_cable"
 
-gem 'bootstrap', '~> 5.3.8'
+gem "bootstrap", "~> 5.3.8"
+
+# HTTP client library abstraction layer
+gem "faraday"
+
+gem "sidekiq"
+
+gem "redis"
+
+gem "minitar"
+
+gem "devise-i18n"
+
+gem "rumale", "~> 1.0"
+gem "rumale-linear_model", "~> 1.0"  # Lasso
+gem "rumale-ensemble", "~> 1.0"      # Random Forest
+gem "rumale-clustering", "~> 1.0"
+
 
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false

@@ -1,0 +1,86 @@
+<%# app/views/analyses/_result_survival.html.erb %>
+<% result = analysis.result %>
+
+<%# Коэффициенты модели %>
+<div class="card mb-4">
+  <div class="card-header"><%= t("analyses.show.coefficients") %></div>
+  <div class="card-body">
+    <div id="coefChart" style="height: 400px;"></div>
+  </div>
+</div>
+
+<%# Кривая выживаемости всей популяции %>
+<div class="card mb-4">
+  <div class="card-header"><%= t("analyses.show.survival_curve") %></div>
+  <div class="card-body">
+    <div id="survivalChart" style="height: 400px;"></div>
+  </div>
+</div>
+
+<%# Кривые по кластерам %>
+<% if result["cluster_curves"].any? %>
+  <div class="card mb-4">
+    <div class="card-header"><%= t("analyses.show.cluster_survival_curves") %></div>
+    <div class="card-body">
+      <div id="clusterSurvivalChart" style="height: 400px;"></div>
+    </div>
+  </div>
+<% end %>
+
+<script>
+  (() => {
+    const colors = ["#6366f1", "#f472b6", "#22c55e", "#f59e0b", "#06b6d4"];
+
+    // Коэффициенты
+    const coefs = <%= result["coefficients"].to_json.html_safe %>;
+    Plotly.newPlot("coefChart", [{
+      type: "bar",
+      orientation: "h",
+      x: coefs.map(c => c.coefficient).reverse(),
+      y: coefs.map(c => c.feature).reverse(),
+      marker: {
+        color: coefs.map(c => c.direction === "protective" ? "#22c55e" : "#ef4444").reverse()
+      },
+      hovertemplate: "<b>%{y}</b><br>Coefficient: %{x:.4f}<extra></extra>"
+    }], {
+      title: "<%= t('analyses.show.coefficients') %>",
+      xaxis: { title: "<%= t('analyses.show.coefficient_value') %>", zeroline: true },
+      yaxis: { automargin: true },
+      margin: { l: 140, r: 40, t: 60, b: 60 }
+    });
+
+    // Кривая выживаемости популяции
+    const curve = <%= result["survival_curve"].to_json.html_safe %>;
+    Plotly.newPlot("survivalChart", [{
+      type: "scatter",
+      mode: "lines",
+      x: curve.map(p => p.time),
+      y: curve.map(p => p.survival),
+      line: { color: "#6366f1", shape: "hv" },
+      name: "<%= t('analyses.show.population') %>"
+    }], {
+      xaxis: { title: "<%= t('analyses.show.days') %>" },
+      yaxis: { title: "<%= t('analyses.show.survival_probability') %>", range: [0, 1.05] },
+      margin: { t: 40 }
+    });
+
+    // Кривые по кластерам
+    <% if result["cluster_curves"].any? %>
+      const clusterCurves = <%= result["cluster_curves"].to_json.html_safe %>;
+      const clusterTraces = Object.entries(clusterCurves).map(([clusterId, pts], i) => ({
+        type: "scatter",
+        mode: "lines",
+        x: pts.map(p => p.time),
+        y: pts.map(p => p.survival),
+        line: { color: colors[i % colors.length], shape: "hv" },
+        name: `Cluster ${clusterId}`
+      }));
+
+      Plotly.newPlot("clusterSurvivalChart", clusterTraces, {
+        xaxis: { title: "<%= t('analyses.show.days') %>" },
+        yaxis: { title: "<%= t('analyses.show.survival_probability') %>", range: [0, 1.05] },
+        margin: { t: 40 }
+      });
+    <% end %>
+  })();
+</script>

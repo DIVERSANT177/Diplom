@@ -1,0 +1,65 @@
+<%# app/views/analyses/_result_feature_importance.html.erb %>
+<% result = analysis.result %>
+
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <div class="fs-3 fw-bold text-primary"><%= result["n_cases"] %></div>
+        <div class="text-muted small"><%= t("analyses.show.n_cases") %></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <div class="fs-3 fw-bold text-primary"><%= result["n_genes_total"] %></div>
+        <div class="text-muted small"><%= t("analyses.show.n_genes_total") %></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <div class="fs-3 fw-bold text-primary"><%= result["top_genes"]&.length %></div>
+        <div class="text-muted small"><%= t("analyses.show.top_genes") %></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <div class="fs-3 fw-bold text-primary"><%= result["n_trees"] %></div>
+        <div class="text-muted small"><%= t("analyses.show.n_trees") %></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header"><%= t("analyses.show.top_genes_chart") %></div>
+  <div class="card-body">
+    <div id="fiChart" style="height: 500px;"></div>
+  </div>
+</div>
+
+<script>
+  (() => {
+    const genes = <%= result["top_genes"].first(30).map { |g| g["gene"] }.to_json.html_safe %>;
+    const importances = <%= result["top_genes"].first(30).map { |g| g["importance"] }.to_json.html_safe %>;
+
+    Plotly.newPlot("fiChart", [{
+      type: "bar",
+      orientation: "h",
+      x: importances.slice().reverse(),
+      y: genes.slice().reverse(),
+      marker: { color: "#6366f1" },
+      hovertemplate: "<b>%{y}</b><br>Importance: %{x:.4f}<extra></extra>"
+    }], {
+      title: "<%= t('analyses.show.top_genes_chart') %>",
+      xaxis: { title: "Feature Importance" },
+      yaxis: { title: "<%= t('analyses.show.gene') %>", automargin: true },
+      margin: { l: 120, r: 40, t: 60, b: 60 }
+    });
+  })();
+</script>

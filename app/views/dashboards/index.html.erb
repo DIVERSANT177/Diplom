@@ -1,0 +1,21 @@
+<h1><%= t('dashboards.index.title') %></h1>
+
+<% if @dashboards.any? %>
+  <div id="dashboards">
+    <% @dashboards.each do |dashboard| %>
+      <div>
+        <%= render dashboard %>
+        <p>
+          <%= link_to t('dashboards.index.open'), dashboard %> |
+          <%= link_to t('dashboards.index.edit'), edit_dashboard_path(dashboard) %>
+          <%= button_to t('dashboards.index.delete'), dashboard, method: :delete, data: { confirm: t('common.confirm_delete') } %>
+        </p>
+      </div>
+      <hr>
+    <% end %>
+  </div>
+<% else %>
+  <p><%= t('dashboards.index.empty') %></p>
+<% end %>
+
+<%= link_to t('dashboards.index.new_button'), new_dashboard_path %>

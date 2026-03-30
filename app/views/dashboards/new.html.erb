@@ -1,0 +1,11 @@
+<% content_for :title, t('dashboards.new.title') %>
+
+<h1><%= t('dashboards.new.title') %></h1>
+
+<%= render "form", dashboard: @dashboard %>
+
+<br>
+
+<div>
+  <%= link_to t('dashboards.index.back'), dashboards_path %>
+</div>

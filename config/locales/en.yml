@@ -1,31 +1,96 @@
-# Files in the config/locales directory are used for internationalization and
-# are automatically loaded by Rails. If you want to use locales other than
-# English, add the necessary files in this directory.
-#
-# To use the locales, use `I18n.t`:
-#
-#     I18n.t "hello"
-#
-# In views, this is aliased to just `t`:
-#
-#     <%= t("hello") %>
-#
-# To use a different locale, set it with `I18n.locale`:
-#
-#     I18n.locale = :es
-#
-# This would use the information in config/locales/es.yml.
-#
-# To learn more about the API, please read the Rails Internationalization guide
-# at https://guides.rubyonrails.org/i18n.html.
-#
-# Be aware that YAML interprets the following case-insensitive strings as
-# booleans: `true`, `false`, `on`, `off`, `yes`, `no`. Therefore, these strings
-# must be quoted to be interpreted as strings. For example:
-#
-#     en:
-#       "yes": yup
-#       enabled: "ON"
-
 en:
-  hello: "Hello world"
+  activerecord:
+    attributes:
+      dashboard:
+        top_genes_count: "Top genes count"
+        title: "Title"
+        stratify_by: "Stratification"
+  helpers:
+    submit:
+      dashboard:
+        create: "Create Dashboard"
+        update: "Save Changes"
+  devise:
+    sessions:
+      new:
+        title: "Log In"
+        email_placeholder: "Enter your email"
+        password_placeholder: "Enter your password"
+        submit: "Log in"
+    registrations:
+      new:
+        title: "Sign Up"
+        min_password_length: "%{count} characters minimum"
+        password_placeholder: "Create a password"
+        password_confirmation_placeholder: "Confirm your password"
+        submit: "Sign up"
+  nav:
+    dashboards: "Dashboards"
+    hello: "Hello, %{email}"
+    sign_in: "Sign In"
+    sign_out: "Sign Out"
+  
+  common:
+    not_selected: "Not selected"
+    not_loaded: "not loaded"
+    confirm_delete: "Are you sure?"
+    errors:
+      one: "1 error prevented this dashboard from being saved"
+      other: "%{count} errors prevented this dashboard from being saved"
+
+  dashboards:
+    fields:
+      title: "Title"
+      status: "Status"
+      projects: "Projects"
+      visualizations: "Visualizations"
+      survival_endpoint: "Survival endpoint"
+      stratify_by: "Stratification"
+      top_genes_count: "Top genes"
+      total_cases: "Patients"
+      created_at: "Created"
+    form:
+      tcga_projects: "TCGA Projects"
+      visualizations: "Visualizations"
+      stratify_by: "Stratification (for Kaplan-Meier)"
+      stratify_options:
+        gender: "Gender"
+        tumor_stage: "Tumor Stage"
+        project_id: "Project"
+    visualizations:
+      kaplan_meier: "Kaplan-Meier Curves"
+      heatmap: "Gene Expression Heatmap"
+      clinical_summary: "Clinical Summary"
+    edit:
+      title: "Editing Dashboard"
+      show: "Show Dashboard"
+      back: "Back to Dashboards"
+    index:
+      title: "Dashboards"
+      open: "Open"
+      edit: "Edit"
+      delete: "Delete"
+      empty: "You have no dashboards yet."
+      new_button: "Create New Dashboard"
+      back: "Back to Dashboards"
+    new:
+      title: "New Dashboard"
+    show:
+      loading: "Loading data..."
+      gender: "Gender"
+      vital_status: "Vital Status"
+      age_groups: "Age Groups"
+      patients: "Patients"
+      days: "Days"
+      survival_pct: "Survival (%)"
+      heatmap_title: "Gene Expression"
+      genes: "Genes"
+      samples: "Samples"
+      expression_loading: "Expression data is loading..."
+      expression_error: "Error: %{message}"
+      expression_not_loaded: "Expression data not yet loaded."
+      show_labels: "Show labels"
+
+  date:
+    formats:
+      short: "%m/%d/%Y %H:%M"

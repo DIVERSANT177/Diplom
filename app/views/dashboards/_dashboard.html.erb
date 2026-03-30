@@ -1,0 +1,11 @@
+<div id="<%= dom_id dashboard %>">
+  <p><strong><%= t('dashboards.fields.title') %>:</strong> <%= dashboard.title %></p>
+  <p><strong><%= t('dashboards.fields.status') %>:</strong> <%= t("status.#{dashboard.status}") %></p>
+  <p><strong><%= t('dashboards.fields.projects') %>:</strong> <%= dashboard.projects.join(", ") %></p>
+  <p><strong><%= t('dashboards.fields.visualizations') %>:</strong> <%= dashboard.visualizations.map { |v| Dashboard.visualization_label(v) }.join(", ") %></p>
+  <p><strong><%= t('dashboards.fields.survival_endpoint') %>:</strong> <%= dashboard.survival_endpoint %></p>
+  <p><strong><%= t('dashboards.fields.stratify_by') %>:</strong> <%= dashboard.stratify_by.presence || t('common.not_selected') %></p>
+  <p><strong><%= t('dashboards.fields.top_genes_count') %>:</strong> <%= dashboard.top_genes_count %></p>
+  <p><strong><%= t('dashboards.fields.total_cases') %>:</strong> <%= dashboard.total_cases.presence || t('common.not_loaded') %></p>
+  <p><strong><%= t('dashboards.fields.created_at') %>:</strong> <%= l(dashboard.created_at, format: :short) %></p>
+</div>

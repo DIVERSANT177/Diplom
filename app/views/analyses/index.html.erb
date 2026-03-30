@@ -1,0 +1,101 @@
+<%# app/views/analyses/index.html.erb %>
+<div class="container py-4">
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <h1><%= t("analyses.index.title") %></h1>
+      <p class="text-muted mb-0"><%= @dashboard.title %></p>
+    </div>
+    <%= link_to t("analyses.new.new_analysis"),
+        new_dashboard_analysis_path(@dashboard),
+        class: "btn btn-primary" %>
+  </div>
+
+  <% if @analyses.empty? %>
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-cpu fs-1 d-block mb-3"></i>
+      <p><%= t("analyses.index.empty") %></p>
+      <%= link_to t("analyses.new.new_analysis"),
+          new_dashboard_analysis_path(@dashboard),
+          class: "btn btn-outline-primary" %>
+    </div>
+
+  <% else %>
+    <%# Прогресс пайплайна %>
+    <div class="card mb-4">
+      <div class="card-body">
+        <h6 class="card-title mb-3"><%= t("analyses.index.pipeline") %></h6>
+        <div class="d-flex align-items-center gap-2">
+
+          <% %w[feature_importance clustering survival].each_with_index do |algo, i| %>
+            <% latest = @analyses.find { |a| a.algorithm == algo } %>
+            <div class="d-flex align-items-center">
+              <div class="pipeline-step rounded-pill px-3 py-1
+                <%= latest&.ready? ? "bg-success text-white" :
+                    latest&.running? ? "bg-info text-white" :
+                    latest&.error? ? "bg-danger text-white" :
+                    "bg-light text-muted border" %>">
+                <small class="fw-bold"><%= t("analyses.algorithms.#{algo}") %></small>
+                <% if latest %>
+                  <span class="ms-1">
+                    <%= latest.ready? ? "✓" : latest.running? ? "⟳" : latest.error? ? "✕" : "" %>
+                  </span>
+                <% end %>
+              </div>
+              <% if i < 2 %>
+                <div class="pipeline-arrow text-muted mx-1">→</div>
+              <% end %>
+            </div>
+          <% end %>
+
+        </div>
+      </div>
+    </div>
+
+    <%# Список анализов %>
+    <div class="card">
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th><%= t("analyses.index.algorithm") %></th>
+              <th><%= t("analyses.index.status") %></th>
+              <th><%= t("analyses.index.params") %></th>
+              <th><%= t("analyses.index.created_at") %></th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @analyses.each do |analysis| %>
+              <tr>
+                <td>
+                  <span class="fw-bold">
+                    <%= t("analyses.algorithms.#{analysis.algorithm}") %>
+                  </span>
+                </td>
+                <td><%= render "status_badge", analysis: analysis %></td>
+                <td>
+                  <small class="text-muted">
+                    <% if analysis.algorithm == "clustering" %>
+                      k=<%= analysis.n_clusters %>
+                    <% end %>
+                    genes=<%= analysis.n_top_genes %>
+                  </small>
+                </td>
+                <td>
+                  <small class="text-muted">
+                    <%= l analysis.created_at, format: :short %>
+                  </small>
+                </td>
+                <td class="text-end">
+                  <%= link_to t("analyses.index.view"),
+                      dashboard_analysis_path(@dashboard, analysis),
+                      class: "btn btn-sm btn-outline-primary" %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  <% end %>
+</div>

@@ -1,0 +1,170 @@
+<%# app/views/analyses/new.html.erb %>
+<div class="container py-4">
+  <h1><%= t("analyses.new.title") %></h1>
+  <p class="text-muted"><%= @dashboard.title %></p>
+
+  <%= form_with model: [@dashboard, @analysis], class: "mt-4" do |f| %>
+
+    <%# Выбор алгоритма %>
+    <div class="mb-4">
+      <label class="form-label fw-bold"><%= t("analyses.new.algorithm") %></label>
+      <div class="row g-3">
+
+        <%# Feature Importance %>
+        <div class="col-md-4">
+          <div class="card h-100 algorithm-card" data-algorithm="feature_importance">
+            <div class="card-body">
+              <div class="form-check">
+                <%= f.radio_button :algorithm, "feature_importance",
+                    class: "form-check-input algorithm-radio",
+                    id: "algo_fi" %>
+                <label class="form-check-label fw-bold" for="algo_fi">
+                  <%= t("analyses.algorithms.feature_importance") %>
+                </label>
+              </div>
+              <p class="text-muted small mt-2 mb-0">
+                <%= t("analyses.algorithms.feature_importance_desc") %>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <%# Clustering %>
+        <div class="col-md-4">
+          <div class="card h-100 algorithm-card <%= "opacity-50" unless @fi_ready %>"
+               data-algorithm="clustering">
+            <div class="card-body">
+              <div class="form-check">
+                <%= f.radio_button :algorithm, "clustering",
+                    class: "form-check-input algorithm-radio",
+                    id: "algo_cl",
+                    disabled: !@fi_ready %>
+                <label class="form-check-label fw-bold" for="algo_cl">
+                  <%= t("analyses.algorithms.clustering") %>
+                </label>
+              </div>
+              <p class="text-muted small mt-2 mb-0">
+                <%= t("analyses.algorithms.clustering_desc") %>
+              </p>
+              <% unless @fi_ready %>
+                <span class="badge bg-warning text-dark mt-2">
+                  <%= t("analyses.new.requires_fi") %>
+                </span>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+        <%# Survival %>
+        <div class="col-md-4">
+          <div class="card h-100 algorithm-card" data-algorithm="survival">
+            <div class="card-body">
+              <div class="form-check">
+                <%= f.radio_button :algorithm, "survival",
+                    class: "form-check-input algorithm-radio",
+                    id: "algo_sv" %>
+                <label class="form-check-label fw-bold" for="algo_sv">
+                  <%= t("analyses.algorithms.survival") %>
+                </label>
+              </div>
+              <p class="text-muted small mt-2 mb-0">
+                <%= t("analyses.algorithms.survival_desc") %>
+              </p>
+              <% unless @cl_ready %>
+                <span class="badge bg-secondary mt-2">
+                  <%= t("analyses.new.optional_clustering") %>
+                </span>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <%# Параметры — показываем нужные в зависимости от алгоритма %>
+    <div class="card mb-4">
+      <div class="card-body">
+        <h5 class="card-title"><%= t("analyses.new.params") %></h5>
+
+        <%# Общий параметр для FI и Clustering %>
+        <div class="mb-3 param-field" id="param_n_top_genes">
+          <label class="form-label">
+            <%= t("analyses.params.n_top_genes") %>
+          </label>
+          <%= f.number_field "params[n_top_genes]",
+              value: @dashboard.top_genes_count,
+              min: 10, max: 500,
+              class: "form-control" %>
+          <div class="form-text"><%= t("analyses.params.n_top_genes_hint") %></div>
+        </div>
+
+        <%# Только для Random Forest %>
+        <div class="mb-3 param-field" id="param_n_trees">
+          <label class="form-label">
+            <%= t("analyses.params.n_trees") %>
+          </label>
+          <%= f.number_field "params[n_trees]",
+              value: 100, min: 10, max: 500,
+              class: "form-control" %>
+          <div class="form-text"><%= t("analyses.params.n_trees_hint") %></div>
+        </div>
+
+        <%# Только для Clustering %>
+        <div class="mb-3 param-field" id="param_n_clusters">
+          <label class="form-label">
+            <%= t("analyses.params.n_clusters") %>
+          </label>
+          <%= f.number_field "params[n_clusters]",
+              value: 3, min: 2, max: 10,
+              class: "form-control" %>
+          <div class="form-text"><%= t("analyses.params.n_clusters_hint") %></div>
+        </div>
+
+      </div>
+    </div>
+
+    <%= f.submit t("analyses.new.submit"), class: "btn btn-primary" %>
+    <%= link_to t("cancel"), dashboard_analyses_path(@dashboard), class: "btn btn-outline-secondary ms-2" %>
+
+  <% end %>
+</div>
+
+<script>
+  (() => {
+    const PARAM_VISIBILITY = {
+      feature_importance: ["param_n_top_genes", "param_n_trees"],
+      clustering:         ["param_n_top_genes", "param_n_clusters"],
+      survival:           []
+    };
+
+    function updateParams(algorithm) {
+      const allParams = ["param_n_top_genes", "param_n_trees", "param_n_clusters"];
+      const visible   = PARAM_VISIBILITY[algorithm] || [];
+
+      allParams.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.style.display = visible.includes(id) ? "block" : "none";
+      });
+    }
+
+    function updateCardStyles(selectedAlgorithm) {
+      document.querySelectorAll(".algorithm-card").forEach(card => {
+        const isSelected = card.dataset.algorithm === selectedAlgorithm;
+        card.classList.toggle("border-primary", isSelected);
+        card.classList.toggle("shadow-sm", isSelected);
+      });
+    }
+
+    document.querySelectorAll(".algorithm-radio").forEach(radio => {
+      radio.addEventListener("change", () => {
+        updateParams(radio.value);
+        updateCardStyles(radio.value);
+      });
+    });
+
+    // Инициализация — скрываем все параметры по умолчанию
+    updateParams(null);
+  })();
+</script>

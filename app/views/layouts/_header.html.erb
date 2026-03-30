@@ -1,0 +1,27 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+  <div class="container">
+    <a class="navbar-brand" href="/"><%= t('nav.dashboards') %></a>
+    <div class="d-flex align-items-center gap-2">
+      <% if current_user.present? %>
+        <span class="navbar-text text-white">
+          <%= t('nav.hello', email: current_user.email) %>
+        </span>
+        <div class="d-flex gap-1">
+          <%= button_to "RU", switch_locale_path(locale: :ru),
+                class: "btn btn-sm #{I18n.locale == :ru ? 'btn-secondary' : 'btn-outline-secondary'}" %>
+          <%= button_to "EN", switch_locale_path(locale: :en),
+                class: "btn btn-sm #{I18n.locale == :en ? 'btn-secondary' : 'btn-outline-secondary'}" %>
+        </div>
+        <%= button_to t('nav.sign_out'), destroy_user_session_path, method: :delete, class: "btn btn-outline-light btn-sm" %>
+      <% else %>
+        <div class="d-flex gap-1">
+          <%= button_to "RU", switch_locale_path(locale: :ru),
+                class: "btn btn-sm #{I18n.locale == :ru ? 'btn-secondary' : 'btn-outline-secondary'}" %>
+          <%= button_to "EN", switch_locale_path(locale: :en),
+                class: "btn btn-sm #{I18n.locale == :en ? 'btn-secondary' : 'btn-outline-secondary'}" %>
+        </div>
+        <%= button_to t('nav.sign_in'), new_user_session_path, method: :post, class: "btn btn-outline-light btn-sm" %>
+      <% end %>
+    </div>
+  </div>
+</nav>

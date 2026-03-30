@@ -1,4 +1,11 @@
+require "sidekiq/web"
+
 Rails.application.routes.draw do
+  post "locale", to: "locales#update", as: :switch_locale
+
+  resources :dashboards do
+    resources :analyses, only: [ :index, :new, :create, :show ]
+  end
   devise_for :users
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
@@ -11,7 +18,11 @@ Rails.application.routes.draw do
   # get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
 
   # Defines the root path route ("/")
+  authenticated :user do
+    mount Sidekiq::Web => "/sidekiq"
+  end
+
   devise_scope :user do
-    root to: "devise/sessions#new"
+    root to: "devise/sessions#new"  # Перенаправит на логин
   end
 end

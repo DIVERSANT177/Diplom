@@ -1,0 +1,162 @@
+ru:
+  activerecord:
+      attributes:
+        dashboard:
+          top_genes_count: "Топ генов"
+          title: "Название"
+          stratify_by: "Стратификация"
+  helpers:
+    submit:
+      dashboard:
+        create: "Создать дашборд"
+        update: "Сохранить изменения"
+  devise:
+    sessions:
+      new:
+        title: "Вход"
+        email_placeholder: "Введите email"
+        password_placeholder: "Введите пароль"
+        submit: "Войти"
+    registrations:
+      new:
+        title: "Регистрация"
+        min_password_length: "минимум %{count} символов"
+        password_placeholder: "Придумайте пароль"
+        password_confirmation_placeholder: "Повторите пароль"
+        submit: "Зарегистрироваться"
+  nav:
+    dashboards: "Дашборды"
+    hello: "Привет, %{email}"
+    sign_in: "Войти"
+    sign_out: "Выйти"
+  
+  common:
+    not_selected: "Не выбрано"
+    not_loaded: "не загружено"
+    confirm_delete: "Вы уверены?"
+    errors:
+      one: "1 ошибка не позволяет сохранить дашборд"
+      few: "%{count} ошибки не позволяют сохранить дашборд"
+      many: "%{count} ошибок не позволяют сохранить дашборд"
+
+  dashboards:
+    fields:
+      title: "Название"
+      status: "Статус"
+      projects: "Проекты"
+      visualizations: "Визуализации"
+      survival_endpoint: "Survival endpoint"
+      stratify_by: "Стратификация"
+      top_genes_count: "Топ генов"
+      total_cases: "Пациентов"
+      created_at: "Создан"
+    form:
+      tcga_projects: "Проекты TCGA"
+      visualizations: "Визуализации"
+      stratify_by: "Стратификация (для Каплана-Мейера)"
+      stratify_options:
+        gender: "Пол"
+        tumor_stage: "Стадия опухоли"
+        project_id: "Проект"
+    visualizations:
+      kaplan_meier: "Кривые Каплана-Мейера"
+      heatmap: "Heatmap экспрессии генов"
+      clinical_summary: "Клиническая сводка"
+    edit:
+      title: "Редактирование дашборда"
+      show: "Просмотр дашборда"
+      back: "Назад к дашбордам"
+    index:
+      title: "Дашборды"
+      open: "Открыть"
+      edit: "Редактировать"
+      delete: "Удалить"
+      empty: "У вас пока нет дашбордов."
+      new_button: "Создать новый дашборд"
+      back: "Назад к дашбордам"
+    new:
+      title: "Новый дашборд"
+    show:
+      loading: "Данные загружаются..."
+      gender: "Пол"
+      vital_status: "Статус выживаемости"
+      age_groups: "Возрастные группы"
+      patients: "Пациентов"
+      days: "Дни"
+      survival_pct: "Выживаемость (%)"
+      heatmap_title: "Экспрессия генов"
+      genes: "Гены"
+      samples: "Образцы"
+      expression_loading: "Данные экспрессии загружаются..."
+      expression_error: "Ошибка: %{message}"
+      expression_not_loaded: "Экспрессия ещё не загружена."
+      show_labels: "Показывать подписи"
+
+  analyses:
+    created: "Анализ запущен"
+    index:
+      title: "Анализы"
+      empty: "Анализы ещё не запускались"
+      pipeline: "Статус пайплайна"
+      algorithm: "Алгоритм"
+      status: "Статус"
+      params: "Параметры"
+      created_at: "Запущен"
+      view: "Смотреть"
+    new:
+      title: "Новый анализ"
+      algorithm: "Выберите алгоритм"
+      params: "Параметры"
+      submit: "Запустить анализ"
+      requires_fi: "Требует Feature Importance"
+      optional_clustering: "Улучшается с кластеризацией"
+      new_analysis: "Новый анализ"
+    algorithms:
+      feature_importance: "Важность генов"
+      feature_importance_desc: "Определяет какие гены наиболее влияют на выживаемость с помощью Random Forest"
+      clustering: "Кластеризация пациентов"
+      clustering_desc: "Группирует пациентов по схожему профилю экспрессии генов (K-Means)"
+      survival: "Прогноз выживаемости"
+      survival_desc: "Строит модель прогнозирования выживаемости по клиническим и молекулярным признакам"
+    status:
+      pending: "Ожидает"
+      running: "Выполняется"
+      ready: "Готово"
+      error: "Ошибка"
+    params:
+      n_top_genes: "Количество топ генов"
+      n_top_genes_hint: "Сколько генов использовать для анализа"
+      n_trees: "Количество деревьев"
+      n_trees_hint: "Больше деревьев = точнее, но дольше"
+      n_clusters: "Количество кластеров"
+      n_clusters_hint: "Рекомендуется 2–5"
+    show:
+      running: "Анализ выполняется, страница обновится автоматически..."
+      error: "Ошибка при выполнении анализа:"
+      n_cases: "Пациентов"
+      n_genes_total: "Всего генов"
+      top_genes: "Топ генов"
+      n_trees: "Деревьев"
+      top_genes_chart: "Важность генов"
+      gene: "Ген"
+      n_clusters: "Кластеров"
+      silhouette_score: "Silhouette Score"
+      cluster_stats: "Статистика по кластерам"
+      cluster_distribution: "Распределение пациентов"
+      cluster: "Кластер"
+      n_patients: "Пациентов"
+      n_dead: "Умерло"
+      mortality_rate: "Смертность"
+      median_age: "Медианный возраст"
+      median_survival: "Медиана выживаемости"
+      coefficients: "Коэффициенты модели"
+      survival_curve: "Кривая выживаемости"
+      cluster_survival_curves: "Выживаемость по кластерам"
+      population: "Вся популяция"
+      days: "Дни"
+      survival_probability: "Вероятность выживаемости"
+      coefficient_value: "Значение коэффициента"
+    
+  date:
+    formats:
+      short: "%d.%m.%Y %H:%M"

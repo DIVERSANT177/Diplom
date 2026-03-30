@@ -1,0 +1,42 @@
+<%# app/views/analyses/show.html.erb %>
+<div class="container py-4">
+
+  <%# Заголовок и статус %>
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <h1><%= @dashboard.title %></h1>
+      <p class="text-muted mb-0"><%= @dashboard.projects&.join(", ") %></p>
+    </div>
+    <div class="d-flex gap-2">
+      <%# Кнопка перехода к анализам %>
+      <%= link_to dashboard_analyses_path(@dashboard),
+          class: "btn btn-outline-primary" do %>
+        <i class="bi bi-cpu me-1"></i>
+        <%= t("analyses.index.title") %>
+        <% count = @dashboard.analyses.count %>
+        <% if count > 0 %>
+          <span class="badge bg-primary ms-1"><%= count %></span>
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+
+  <%# Ожидание / ошибка %>
+  <% if @analysis.pending? || @analysis.running? %>
+    <div class="alert alert-info d-flex align-items-center gap-3">
+      <div class="spinner-border spinner-border-sm" role="status"></div>
+      <span><%= t("analyses.show.running") %></span>
+    </div>
+    <meta http-equiv="refresh" content="5">
+
+  <% elsif @analysis.error? %>
+    <div class="alert alert-danger">
+      <strong><%= t("analyses.show.error") %></strong>
+      <%= @analysis.error_message %>
+    </div>
+
+  <% elsif @analysis.ready? %>
+    <%= render "result_#{@analysis.algorithm}", analysis: @analysis %>
+  <% end %>
+
+</div>

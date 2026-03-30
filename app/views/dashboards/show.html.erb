@@ -1,0 +1,246 @@
+<h1><%= @dashboard.title %></h1>
+
+<%= turbo_stream_from "dashboard_#{@dashboard.id}" %>
+
+<div id="<%= dom_id @dashboard %>">
+  <%= render @dashboard %>
+  <% if @dashboard.status.in?(%w[draft fetching]) %>
+    <p><%= t('dashboards.show.loading') %></p>
+  <% end %>
+</div>
+
+<% if @dashboard.visualizations.include?("clinical_summary") && @dashboard.status == "ready" %>
+  <h2><%= t('dashboards.visualizations.clinical_summary') %></h2>
+
+  <div style="display: flex; gap: 40px; flex-wrap: wrap;">
+    <div>
+      <h3><%= t('dashboards.show.gender') %></h3>
+      <canvas id="genderChart" width="300" height="300"></canvas>
+    </div>
+    <div>
+      <h3><%= t('dashboards.show.vital_status') %></h3>
+      <canvas id="vitalStatusChart" width="300" height="300"></canvas>
+    </div>
+    <div>
+      <h3><%= t('dashboards.show.age_groups') %></h3>
+      <canvas id="ageChart" width="300" height="300"></canvas>
+    </div>
+  </div>
+<% end %>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+
+<% if @dashboard.visualizations.include?("clinical_summary") && @dashboard.status == "ready" %>
+  <script>
+    (() => {
+      const genderData = <%= @clinical_summary[:gender].to_json.html_safe %>;
+      const vitalData  = <%= @clinical_summary[:vital_status].to_json.html_safe %>;
+      const ageData    = <%= @clinical_summary[:age_groups].to_json.html_safe %>;
+
+      const genderColors = {
+        'male':         '#6366f1',
+        'female':       '#f472b6',
+        'not reported': '#94a3b8',
+        'unknown':      '#cbd5e1'
+      };
+
+      const vitalColors = {
+        'Alive': '#22c55e',
+        'Dead':  '#ef4444',
+        'Not Reported': '#94a3b8'
+      };
+
+      new Chart(document.getElementById('genderChart'), {
+        type: 'pie',
+        data: {
+          labels: Object.keys(genderData),
+          datasets: [{
+            data: Object.values(genderData),
+            backgroundColor: Object.keys(genderData).map(k => genderColors[k] || '#94a3b8')
+          }]
+        }
+      });
+
+      new Chart(document.getElementById('vitalStatusChart'), {
+        type: 'pie',
+        data: {
+          labels: Object.keys(vitalData),
+          datasets: [{
+            data: Object.values(vitalData),
+            backgroundColor: Object.keys(vitalData).map(k => vitalColors[k] || '#94a3b8')
+          }]
+        }
+      });
+
+      new Chart(document.getElementById('ageChart'), {
+        type: 'bar',
+        data: {
+          labels: Object.keys(ageData),
+          datasets: [{
+            label: '<%= t('dashboards.show.patients') %>',
+            data: Object.values(ageData),
+            backgroundColor: '#6366f1'
+          }]
+        },
+        options: {
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    })();
+  </script>
+<% end %>
+
+<% if @dashboard.visualizations.include?("kaplan_meier") && @dashboard.status == "ready" %>
+  <h2><%= t('dashboards.visualizations.kaplan_meier') %> (<%= @dashboard.survival_endpoint %>)</h2>
+  <canvas id="kmChart" style="max-width: 900px; max-height: 450px;"></canvas>
+
+  <script>
+    (() => {
+      const kmData = <%= @kaplan_meier.to_json.html_safe %>;
+      const colors = [
+        '#6366f1', '#f472b6', '#22c55e', '#f59e0b', '#ef4444',
+        '#06b6d4', '#a855f7', '#84cc16', '#f97316', '#14b8a6',
+        '#e11d48', '#8b5cf6', '#10b981', '#fbbf24', '#3b82f6'
+      ];
+
+      const datasets = Object.entries(kmData).map(([group, points], i) => ({
+        label: group,
+        data: points.map(p => ({ x: p.time, y: p.survival * 100 })),
+        borderColor: colors[i % colors.length],
+        backgroundColor: 'transparent',
+        stepped: true,
+        pointRadius: 0,
+        borderWidth: 2
+      }));
+
+      new Chart(document.getElementById('kmChart'), {
+        type: 'line',
+        data: { datasets },
+        options: {
+          scales: {
+            x: { type: 'linear', title: { display: true, text: '<%= t('dashboards.show.days') %>' } },
+            y: { min: 0, max: 100, title: { display: true, text: '<%= t('dashboards.show.survival_pct') %>' } }
+          },
+          plugins: {
+            legend: { position: 'top' }
+          }
+        }
+      });
+    })();
+  </script>
+<% end %>
+
+<% if @dashboard.visualizations.include?("heatmap") %>
+  <h2><%= t('dashboards.visualizations.heatmap') %></h2>
+
+  <% if @dashboard.expression_status == "ready" %>
+
+    <%# Чекбокс %>
+    <div class="form-check form-switch mb-3">
+      <input class="form-check-input" type="checkbox" id="heatmapToggleLabels" checked>
+      <label class="form-check-label" for="heatmapToggleLabels">
+        <%= t('dashboards.show.show_labels') %>
+      </label>
+    </div>
+
+    <div id="heatmapChart" style="width: 100%; height: 600px;"></div>
+
+    <script>
+      (() => {
+        const heatmapData = <%= @heatmap.to_json.html_safe %>;
+        const annotations  = heatmapData.annotations;
+
+        const genderBar = {
+          type: 'heatmap',
+          z: [annotations.map(a => a.gender?.toLowerCase() === 'male' ? 1 : a.gender?.toLowerCase() === 'female' ? -1 : 0)],
+          x: heatmapData.samples,
+          colorscale: [['0', '#f472b6'], ['0.5', '#94a3b8'], ['1', '#6366f1']],
+          showscale: false,
+          text: [annotations.map(a => `<%= t('dashboards.show.gender') %>: ${a.gender}`)],
+          hovertemplate: '%{text}<extra></extra>',
+          xaxis: 'x',
+          yaxis: 'y2'
+        };
+
+        const vitalBar = {
+          type: 'heatmap',
+          z: [annotations.map(a => a.vital_status?.toLowerCase() === 'alive' ? 1 : a.vital_status?.toLowerCase() === 'dead' ? -1 : 0)],
+          x: heatmapData.samples,
+          colorscale: [['0', '#ef4444'], ['0.5', '#94a3b8'], ['1', '#22c55e']],
+          zmin: -1,
+          zmax: 1,
+          showscale: false,
+          text: [annotations.map(a => `<%= t('dashboards.show.vital_status') %>: ${a.vital_status}`)],
+          hovertemplate: '%{text}<extra></extra>',
+          xaxis: 'x',
+          yaxis: 'y3'
+        };
+
+        const LABELS_ON = {
+          title: '<%= t('dashboards.show.heatmap_title') %>',
+          'xaxis.title.text':  '<%= t('dashboards.show.samples') %>',
+          'xaxis.showticklabels': true,
+          'yaxis.title.text':  '<%= t('dashboards.show.genes') %>',
+          'yaxis2.title.text': '<%= t('dashboards.show.gender') %>',
+          'yaxis3.title.text': '<%= t('dashboards.show.vital_status') %>',
+          'coloraxis.colorbar.title.text': 'Z-score'
+        };
+
+        const LABELS_OFF = {
+          title: '',
+          'xaxis.title.text':  '',
+          'xaxis.showticklabels': false,
+          'yaxis.title.text':  '',
+          'yaxis2.title.text': '',
+          'yaxis3.title.text': '',
+          'coloraxis.colorbar.title.text': ''
+        };
+
+        const heatmapDiv = document.getElementById('heatmapChart');
+
+        Plotly.newPlot(heatmapDiv, [genderBar, vitalBar, {
+          type: 'heatmap',
+          z: heatmapData.matrix,
+          x: heatmapData.samples,
+          y: heatmapData.genes,
+          colorscale: 'RdBu',
+          reversescale: true,
+          colorbar: { title: 'Z-score', y: 0.4, len: 0.7 },
+          xaxis: 'x',
+          yaxis: 'y',
+          hovermode: 'closest',
+          dragmode: 'pan'
+        }], {
+          title: '<%= t('dashboards.show.heatmap_title') %>',
+          grid: { rows: 3, columns: 1, roworder: 'top to bottom' },
+          yaxis:  { title: '<%= t('dashboards.show.genes') %>',         tickfont: { size: 9 }, domain: [0, 0.85] },
+          yaxis2: { title: '<%= t('dashboards.show.gender') %>',        domain: [0.88, 0.93], showticklabels: false },
+          yaxis3: { title: '<%= t('dashboards.show.vital_status') %>',  domain: [0.95, 1.0],  showticklabels: false },
+          xaxis:  { tickangle: -45, title: '<%= t('dashboards.show.samples') %>', type: 'category' },
+          margin: { l: 100, r: 40, t: 60, b: 120 },
+          bargap: 0
+        });
+
+        document.getElementById('heatmapToggleLabels').addEventListener('change', function () {
+          Plotly.relayout(heatmapDiv, this.checked ? LABELS_ON : LABELS_OFF);
+        });
+      })();
+    </script>
+
+  <% elsif @dashboard.expression_status == "fetching" %>
+    <p><%= t('dashboards.show.expression_loading') %></p>
+
+  <% elsif @dashboard.expression_status == "error" %>
+    <p style="color: red"><%= t('dashboards.show.expression_error', message: @dashboard.expression_error) %></p>
+
+  <% else %>
+    <p><%= t('dashboards.show.expression_not_loaded') %></p>
+  <% end %>
+<% end %>
+
+<div>
+  <%= link_to t('dashboards.index.edit'), edit_dashboard_path(@dashboard) %> |
+  <%= link_to t('dashboards.index.back'), dashboards_path %>
+  <%= button_to t('dashboards.index.delete'), @dashboard, method: :delete, data: { confirm: t('common.confirm_delete') } %>
+</div>
