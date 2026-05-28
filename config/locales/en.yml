@@ -1,31 +1,314 @@
-# Files in the config/locales directory are used for internationalization and
-# are automatically loaded by Rails. If you want to use locales other than
-# English, add the necessary files in this directory.
-#
-# To use the locales, use `I18n.t`:
-#
-#     I18n.t "hello"
-#
-# In views, this is aliased to just `t`:
-#
-#     <%= t("hello") %>
-#
-# To use a different locale, set it with `I18n.locale`:
-#
-#     I18n.locale = :es
-#
-# This would use the information in config/locales/es.yml.
-#
-# To learn more about the API, please read the Rails Internationalization guide
-# at https://guides.rubyonrails.org/i18n.html.
-#
-# Be aware that YAML interprets the following case-insensitive strings as
-# booleans: `true`, `false`, `on`, `off`, `yes`, `no`. Therefore, these strings
-# must be quoted to be interpreted as strings. For example:
-#
-#     en:
-#       "yes": yup
-#       enabled: "ON"
-
 en:
-  hello: "Hello world"
+  activerecord:
+    attributes:
+      dashboard:
+        top_genes_count: "Top genes count"
+        title: "Title"
+        stratify_by: "Stratification"
+  helpers:
+    submit:
+      dashboard:
+        create: "Create Dashboard"
+        update: "Save Changes"
+  devise:
+    sessions:
+      new:
+        title: "Log In"
+        email_placeholder: "Enter your email"
+        password_placeholder: "Enter your password"
+        submit: "Log in"
+    registrations:
+      new:
+        title: "Sign Up"
+        min_password_length: "%{count} characters minimum"
+        password_placeholder: "Create a password"
+        password_confirmation_placeholder: "Confirm your password"
+        submit: "Sign up"
+  nav:
+    dashboards: "Dashboards"
+    hello: "Hello, %{email}"
+    sign_in: "Sign In"
+    sign_out: "Sign Out"
+
+  common:
+    not_selected: "Not selected"
+    not_loaded: "not loaded"
+    confirm_delete: "Are you sure?"
+    no_data: "—"
+    days_short: "d"
+    errors:
+      one: "1 error prevented this dashboard from being saved"
+      other: "%{count} errors prevented this dashboard from being saved"
+
+  dashboards:
+    fields:
+      title: "Title"
+      status: "Status"
+      projects: "Projects"
+      visualizations: "Visualizations"
+      survival_endpoint: "Survival endpoint"
+      stratify_by: "Stratification"
+      top_genes_count: "Top genes"
+      total_cases: "Patients"
+      created_at: "Created"
+    form:
+      tcga_projects: "TCGA Projects"
+      visualizations: "Visualizations"
+      stratify_by: "Stratification (for Kaplan-Meier)"
+      stratify_options:
+        gender: "Gender"
+        tumor_stage: "Tumor Stage"
+        project_id: "Project"
+    visualizations:
+      kaplan_meier: "Kaplan-Meier Curves"
+      heatmap: "Gene Expression Heatmap"
+      clinical_summary: "Clinical Summary"
+    status:
+      draft: "Draft"
+      fetching: "Loading"
+      ready: "Ready"
+      error: "Error"
+    edit:
+      title: "Editing Dashboard"
+      show: "Show Dashboard"
+      back: "Back to Dashboards"
+    index:
+      title: "Dashboards"
+      open: "Open"
+      edit: "Edit"
+      delete: "Delete"
+      empty: "You have no dashboards yet."
+      new_button: "Create New Dashboard"
+      back: "Back to Dashboards"
+    new:
+      title: "New Dashboard"
+    show:
+      loading: "Loading data..."
+      gender: "Gender"
+      vital_status: "Vital Status"
+      age_groups: "Age Groups"
+      patients: "Patients"
+      days: "Days"
+      survival_pct: "Survival (%)"
+      heatmap_title: "Gene Expression"
+      genes: "Genes"
+      samples: "Samples"
+      expression_loading: "Expression data is loading..."
+      expression_error: "Error: %{message}"
+      expression_not_loaded: "Expression data not yet loaded."
+      show_labels: "Show labels"
+      samples_per_page: "Samples per page"
+      heatmap_loading: "Loading heatmap..."
+      prev_page: "Prev"
+      next_page: "Next"
+      showing_samples: "Samples"
+    pdf:
+      title: "PDF Export"
+      generate: "Generate PDF"
+      regenerate: "Regenerate PDF"
+      download: "Download PDF"
+      generating: "Generating..."
+      idle_hint: "Generate a PDF report for this dashboard. The file will be built in the background."
+      generating_hint: "The PDF report is being generated in the background. You can keep working — the button will update automatically."
+      ready_hint: "Last report generated at %{time}."
+      error_hint: "Error generating report: %{message}"
+      started: "PDF generation has been started in the background."
+      already_generating: "PDF is already being generated in the background."
+      not_ready: "PDF is not ready yet."
+
+  cancel: "Cancel"
+
+  pipeline:
+    title: "Data Analysis"
+    all_analyses: "All Analyses"
+    not_started: "Not started"
+    step: "Step %{n}"
+    run: "Run"
+    retry: "Retry"
+    details: "Details"
+    requires_previous: "Requires previous step"
+    works_without_clustering: "works without clustering"
+    waiting_cases: "Waiting for clinical data to load..."
+    waiting_expression: "Waiting for gene expression data to load..."
+    top_genes_preview: "Top 15 genes by importance"
+    n_features: "Model features"
+    advanced_settings: "Advanced analysis settings"
+    go_to_analysis: "Data Analysis"
+    back_to_dashboard: "Dashboard"
+    back_to_analyses: "Back to Analyses"
+    history: "Analysis History"
+
+  analyses:
+    created: "Analysis started"
+    index:
+      title: "Analyses"
+      empty: "No analyses have been run yet"
+      pipeline: "Pipeline Status"
+      algorithm: "Algorithm"
+      status: "Status"
+      params: "Parameters"
+      created_at: "Started"
+      view: "View"
+    new:
+      title: "New Analysis"
+      algorithm: "Select Algorithm"
+      params: "Parameters"
+      submit: "Run Analysis"
+      requires_fi: "Requires Feature Importance"
+      optional_clustering: "Improved with clustering"
+      new_analysis: "New Analysis"
+    algorithms:
+      feature_importance: "Gene Importance"
+      feature_importance_desc: "Determines which genes most affect survival using Random Forest"
+      clustering: "Patient Clustering"
+      clustering_desc: "Groups patients by similar gene expression profiles (K-Means)"
+      survival: "Survival Prediction"
+      survival_desc: "Builds a survival prediction model based on clinical and molecular features"
+    status:
+      pending: "Pending"
+      running: "Running"
+      ready: "Ready"
+      error: "Error"
+    params:
+      n_top_genes: "Number of top genes"
+      n_top_genes_hint: "How many genes to use for analysis"
+      n_trees: "Number of trees"
+      n_trees_hint: "More trees = more accurate, but slower"
+      n_clusters: "Number of clusters"
+      n_clusters_hint: "Recommended 2–5"
+      reg_param: "Regularization strength (L2)"
+      reg_param_hint: "Higher value = stronger smoothing, less risk of overfitting. Default 1.0"
+      model_type: "Survival model"
+      model_cox: "Cox PH (recommended)"
+      model_ridge: "Ridge on log(time) — baseline for comparison"
+      model_type_hint: "Cox proportional hazards correctly handles censored patients (still alive). Ridge on log(time) is simpler but biased on censored data."
+    show:
+      running: "Analysis is running, page will refresh automatically..."
+      error: "Error during analysis:"
+      n_cases: "Patients"
+      n_genes_total: "Total genes"
+      top_genes: "Top genes"
+      n_trees: "Trees"
+      top_genes_chart: "Gene Importance"
+      gene: "Gene"
+      n_clusters: "Clusters"
+      silhouette_score: "Silhouette Score"
+      cluster_stats: "Cluster Statistics"
+      cluster_distribution: "Patient Distribution"
+      cluster: "Cluster"
+      n_patients: "Patients"
+      n_dead: "Deceased"
+      mortality_rate: "Mortality"
+      mortality_label: "mortality"
+      median_age: "Median Age"
+      median_survival: "Median Survival"
+      coefficients: "Model Coefficients"
+      coefficient: "Coefficient"
+      importance: "Importance"
+      c_index: "C-index"
+      c_index_hint: "Ranking quality (0.5 — random, 1.0 — perfect)"
+      c_index_test: "C-index (test)"
+      c_index_test_hint: "On held-out 20% — honest estimate"
+      c_index_train: "C-index (train)"
+      c_index_train_hint: "On training data — optimistic"
+      overfitting_gap: "Train/test gap"
+      overfitting_gap_hint: "Large gap (>0.15) indicates overfitting"
+      train_test_split: "Train: %{train} / Test: %{test}"
+      survival_curve: "Survival Curve"
+      cluster_survival_curves: "Survival by Cluster"
+      population: "Entire Population"
+      days: "Days"
+      survival_probability: "Survival Probability"
+      coefficient_value: "Coefficient Value"
+      coefficients_note: "Standardized — binary and continuous features on the same scale"
+      coefficients_note_cox: "log(Hazard ratio) per 1 SD. Positive — higher risk, negative — protective"
+      standardized_coefficient: "Standardized coefficient"
+      raw_coefficient: "Raw coefficient"
+      log_hazard_ratio: "log(Hazard ratio)"
+      feature_std: "Feature std"
+      hazard_ratio: "Hazard ratio"
+      model:
+        cox: "Cox PH"
+        ridge: "Ridge on log(time)"
+      cox_iters_converged: "Adam: %{n} iterations (converged)"
+      cox_iters_not_converged: "Adam: %{n} iterations (did not converge)"
+      events_count: "Events — train: %{train}, test: %{test}"
+
+    comparison:
+      title: "Model comparison"
+      conclusion: "Conclusion"
+      cox_better: "Cox better than Ridge by %{delta} test c-index. Cox is recommended for survival data with censoring."
+      ridge_better: "Ridge ahead by %{delta} test c-index — unusual for survival data, double-check."
+      equal: "Both models reach the same test c-index — Cox is preferred for correctness on censored data."
+      too_close: "Test c-index difference (%{delta}) is within noise — Cox is preferred for correctness on censored data."
+      ridge_misspec: "⚠ Ridge has negative train/test gap — sign of model misspecification (treats censored patients as if they had observed events)."
+
+    errors:
+      fi_required: "Run Feature Importance before clustering or survival analysis."
+      already_running: "An analysis of this type is already pending or running for this dashboard."
+
+  predictions:
+    title: "Patient survival prediction"
+    open_predict: "Predict for a patient"
+    patient_data: "Patient data"
+    age: "Age"
+    gender: "Gender"
+    stage: "Tumor stage"
+    stage_unknown: "Unknown"
+    genders:
+      male: "Male"
+      female: "Female"
+    expression_file: "Gene expression file (GDC STAR-Counts TSV)"
+    expression_file_hint: "Upload a TSV file downloaded from GDC Portal (Gene Expression Quantification, STAR - Counts). Accepts .tsv and .tsv.gz"
+    submit: "Get prediction"
+    predicted_days: "Predicted survival time, days"
+    predicted_median_days: "Predicted median survival, days"
+    risk_score: "Risk score"
+    years: "years"
+    curve_position: "Patient position on cohort survival curve"
+    curve_hint: "The diamond shows the predicted survival time. Blue line is the Kaplan-Meier curve over the entire training/test cohort."
+    individual_curve: "Individual survival curve S(t|x)"
+    individual_curve_hint: "Bold line — predicted survival probability for this patient over time. Dotted gray — average S₀(t) across the cohort. Diamond — predicted median (where S(t|x) crosses 50%)."
+    median_label: "Median (50%)"
+    milestones_title: "Survival probability at key time points"
+    milestone_term: "Term"
+    milestone_patient: "This patient"
+    milestone_cohort: "Cohort baseline (S₀)"
+    years_count:
+      one: "%{count} year"
+      few: "%{count} years"
+      other: "%{count} years"
+    patient: "Patient"
+    input_summary: "Input data"
+    out_of_range: "Prediction is outside the observed range (%{min}–%{max} days). Treat with caution."
+    out_of_range_short: "out of range"
+    gene_coverage: "Gene coverage"
+    genes_found: "model genes found in file"
+    missing_genes: "Missing (%{count}) — filled with zero"
+    all_genes_found: "All model genes found in file"
+    intro: "To get a prediction, fill in the clinical data and upload a gene expression TSV:"
+    intro_step_1: "Go to portal.gdc.cancer.gov and open Repository"
+    intro_step_2: "Filter: Data Type = Gene Expression Quantification, Workflow = STAR - Counts"
+    intro_step_3: "Download the target patient file and upload it here"
+    disclaimer: "Note: the model is trained on a specific cohort and gives an indicative prediction only. Not intended for clinical decisions."
+    errors:
+      no_model: "No ready survival analysis for this dashboard. Run it first."
+      missing_file: "Please upload a gene expression file."
+      bad_gzip: "Could not read gzip file: %{message}"
+
+  pdf:
+    overview: "Overview"
+    group: "Group"
+    n_points: "Points on curve"
+    median_survival: "Median survival"
+    expression_status: "Expression status"
+    expression_pending: "Pending"
+    expression_fetching: "Fetching"
+    expression_ready: "Ready"
+    expression_error: "Error"
+    generated_at: "Generated at %{time}"
+    heatmap_snapshot: "Heatmap snapshot"
+
+  date:
+    formats:
+      short: "%m/%d/%Y %H:%M"

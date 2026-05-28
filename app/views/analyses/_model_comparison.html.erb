@@ -1,0 +1,161 @@
+<%# app/views/analyses/_model_comparison.html.erb %>
+<%# Сравнение последних готовых Cox и Ridge survival-анализов на дашборде. %>
+<% cox_test    = cox.result["c_index_test"]   || cox.result["c_index"] %>
+<% cox_train   = cox.result["c_index_train"] %>
+<% ridge_test  = ridge.result["c_index_test"]  || ridge.result["c_index"] %>
+<% ridge_train = ridge.result["c_index_train"] %>
+
+<% cox_gap   = (cox_train   && cox_test)   ? (cox_train   - cox_test).round(3)   : nil %>
+<% ridge_gap = (ridge_train && ridge_test) ? (ridge_train - ridge_test).round(3) : nil %>
+
+<%# Победитель объявляется только если разница в test c-index превышает шумовой порог:
+    на типичных размерах когорт TCGA дельта < 0.01 — это статистически шум. %>
+<% c_index_noise = 0.01 %>
+<% test_winner =
+  if cox_test && ridge_test && (cox_test - ridge_test).abs >= c_index_noise
+    cox_test > ridge_test ? :cox : :ridge
+  end %>
+
+<div class="card mb-4 border-primary">
+  <div class="card-header bg-primary bg-opacity-10">
+    <h5 class="mb-0"><%= t("analyses.comparison.title") %></h5>
+  </div>
+  <div class="card-body">
+
+    <div class="row g-3">
+
+      <%# Левая колонка: таблица %>
+      <div class="col-lg-7">
+        <table class="table table-sm align-middle">
+          <thead class="table-light">
+            <tr>
+              <th></th>
+              <th class="text-center">
+                <span class="badge bg-primary"><%= t("analyses.show.model.cox") %></span>
+              </th>
+              <th class="text-center">
+                <span class="badge bg-secondary"><%= t("analyses.show.model.ridge") %></span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><%= t("analyses.show.c_index_test") %></td>
+              <td class="text-center">
+                <strong class="<%= "text-success" if test_winner == :cox %>"><%= cox_test || "—" %></strong>
+                <%= "✓".html_safe if test_winner == :cox %>
+              </td>
+              <td class="text-center">
+                <strong class="<%= "text-success" if test_winner == :ridge %>"><%= ridge_test || "—" %></strong>
+                <%= "✓".html_safe if test_winner == :ridge %>
+              </td>
+            </tr>
+            <tr>
+              <td><%= t("analyses.show.c_index_train") %></td>
+              <td class="text-center text-muted"><%= cox_train || "—" %></td>
+              <td class="text-center text-muted"><%= ridge_train || "—" %></td>
+            </tr>
+            <tr>
+              <td><%= t("analyses.show.overfitting_gap") %></td>
+              <td class="text-center <%= "text-warning" if cox_gap && cox_gap > 0.15 %>">
+                <%= cox_gap || "—" %>
+              </td>
+              <td class="text-center <%= "text-danger fw-bold" if ridge_gap && ridge_gap < 0 %>">
+                <%= ridge_gap || "—" %>
+                <%= "(!)".html_safe if ridge_gap && ridge_gap < 0 %>
+              </td>
+            </tr>
+            <tr>
+              <td>reg_param</td>
+              <td class="text-center small text-muted"><%= cox.params["reg_param"] || cox.reg_param %></td>
+              <td class="text-center small text-muted"><%= ridge.params["reg_param"] || ridge.reg_param %></td>
+            </tr>
+            <tr>
+              <td>n_top_genes</td>
+              <td class="text-center small text-muted"><%= cox.params["n_top_genes"] || cox.n_top_genes %></td>
+              <td class="text-center small text-muted"><%= ridge.params["n_top_genes"] || ridge.n_top_genes %></td>
+            </tr>
+            <tr>
+              <td><%= t("analyses.index.created_at") %></td>
+              <td class="text-center small text-muted"><%= l cox.created_at, format: :short %></td>
+              <td class="text-center small text-muted"><%= l ridge.created_at, format: :short %></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <%# Правая колонка: график %>
+      <div class="col-lg-5">
+        <div id="modelComparisonChart" style="height: 280px;"></div>
+      </div>
+    </div>
+
+    <%# Интерпретация %>
+    <% if cox_test && ridge_test %>
+      <% delta = (cox_test - ridge_test).round(3) %>
+      <div class="alert alert-info small mt-3 mb-0">
+        <strong><%= t("analyses.comparison.conclusion") %>:</strong>
+        <% if delta.abs < c_index_noise %>
+          <%= delta.zero? ? t("analyses.comparison.equal") : t("analyses.comparison.too_close", delta: delta.abs) %>
+        <% elsif delta > 0 %>
+          <%= t("analyses.comparison.cox_better", delta: delta.abs) %>
+        <% else %>
+          <%= t("analyses.comparison.ridge_better", delta: delta.abs) %>
+        <% end %>
+        <% if ridge_gap && ridge_gap < 0 %>
+          <br>
+          <%= t("analyses.comparison.ridge_misspec") %>
+        <% end %>
+      </div>
+    <% end %>
+
+  </div>
+</div>
+
+<script>
+  (() => {
+    const I18N = {
+      cox:        "<%= t('analyses.show.model.cox') %>",
+      ridge:      "<%= t('analyses.show.model.ridge') %>",
+      cIndexTest: "<%= t('analyses.show.c_index_test') %>",
+      cIndexTrain:"<%= t('analyses.show.c_index_train') %>"
+    };
+
+    const cIndexTrainCox  = <%= cox_train  || 'null' %>;
+    const cIndexTestCox   = <%= cox_test   || 'null' %>;
+    const cIndexTrainRidge = <%= ridge_train || 'null' %>;
+    const cIndexTestRidge  = <%= ridge_test  || 'null' %>;
+
+    const traces = [
+      {
+        type: "bar", name: I18N.cox,
+        x: [I18N.cIndexTest, I18N.cIndexTrain],
+        y: [cIndexTestCox, cIndexTrainCox],
+        marker: { color: "#6366f1" },
+        text: [cIndexTestCox?.toFixed(3), cIndexTrainCox?.toFixed(3)],
+        textposition: "outside"
+      },
+      {
+        type: "bar", name: I18N.ridge,
+        x: [I18N.cIndexTest, I18N.cIndexTrain],
+        y: [cIndexTestRidge, cIndexTrainRidge],
+        marker: { color: "#94a3b8" },
+        text: [cIndexTestRidge?.toFixed(3), cIndexTrainRidge?.toFixed(3)],
+        textposition: "outside"
+      }
+    ];
+
+    Plotly.newPlot("modelComparisonChart", traces, {
+      barmode: "group",
+      yaxis: { range: [0.4, 1.0], title: "C-index" },
+      legend: { orientation: "h", y: 1.15 },
+      margin: { l: 50, r: 20, t: 40, b: 40 },
+      // Линия 0.5 — random ranking
+      shapes: [{
+        type: "line", x0: -0.5, x1: 1.5, xref: "x",
+        y0: 0.5, y1: 0.5, yref: "y",
+        line: { color: "#cbd5e1", width: 1, dash: "dash" }
+      }]
+    }, { responsive: true });
+  })();
+</script>

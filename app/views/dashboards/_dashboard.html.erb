@@ -1,0 +1,57 @@
+<div id="<%= dom_id dashboard %>">
+  <div class="row g-3 mb-3">
+    <div class="col-sm-6 col-lg-3">
+      <div class="stat-card">
+        <div class="stat-value"><%= dashboard.total_cases.presence || "—" %></div>
+        <div class="stat-label"><%= t('dashboards.fields.total_cases') %></div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="stat-card">
+        <div class="stat-value"><%= dashboard.top_genes_count %></div>
+        <div class="stat-label"><%= t('dashboards.fields.top_genes_count') %></div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="stat-card">
+        <div class="stat-value"><%= dashboard.projects.length %></div>
+        <div class="stat-label"><%= t('dashboards.fields.projects') %></div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="stat-card">
+        <% status_class = case dashboard.status
+             when "ready" then "text-success"
+             when "fetching" then "text-warning"
+             when "error" then "text-danger"
+             else "text-secondary"
+           end %>
+        <div class="stat-value <%= status_class %>" style="font-size: 1.1rem;">
+          <%= t("dashboards.status.#{dashboard.status}") %>
+        </div>
+        <div class="stat-label"><%= t('dashboards.fields.status') %></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="small text-muted">
+        <strong><%= t('dashboards.fields.projects') %>:</strong>
+        <%= dashboard.projects.join(", ") %>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="small text-muted">
+        <strong><%= t('dashboards.fields.stratify_by') %>:</strong>
+        <%= dashboard.stratify_by.presence || t('common.not_selected') %>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="small text-muted">
+        <strong><%= t('dashboards.fields.created_at') %>:</strong>
+        <%= l(dashboard.created_at, format: :short) %>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,6 @@
+<%# app/views/analyses/_status_badge.html.erb %>
+<% color = { "pending" => "secondary", "running" => "info",
+             "ready" => "success", "error" => "danger" } %>
+<span class="badge bg-<%= color[analysis.status] %>">
+  <%= t("analyses.status.#{analysis.status}") %>
+</span>

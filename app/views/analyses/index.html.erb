@@ -1,0 +1,89 @@
+<%# app/views/analyses/index.html.erb %>
+<% content_for :head do %>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<% end %>
+
+<div class="container py-4">
+
+  <%# Page header %>
+  <div class="page-header d-flex align-items-center justify-content-between">
+    <div>
+      <h1><%= @dashboard.title %></h1>
+      <p class="text-muted mb-0"><%= @dashboard.projects&.join(", ") %></p>
+    </div>
+    <div class="d-flex gap-2">
+      <%= link_to @dashboard, class: "btn btn-outline-secondary" do %>
+        <%= t("pipeline.back_to_dashboard") %>
+      <% end %>
+      <%= link_to new_dashboard_analysis_path(@dashboard), class: "btn btn-primary" do %>
+        <%= t("pipeline.advanced_settings") %>
+      <% end %>
+    </div>
+  </div>
+
+  <%# Pipeline %>
+  <%= render "dashboards/analysis_pipeline", dashboard: @dashboard, pipeline: @pipeline %>
+
+  <% if @cox_analysis && @ridge_analysis %>
+    <%= render "model_comparison", cox: @cox_analysis, ridge: @ridge_analysis %>
+  <% end %>
+
+  <% if @any_running %>
+    <meta http-equiv="refresh" content="5">
+  <% end %>
+
+  <%# History %>
+  <% if @history.any? %>
+    <div class="card mt-4">
+      <div class="card-header">
+        <h5 class="mb-0"><%= t("pipeline.history") %></h5>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th><%= t("analyses.index.algorithm") %></th>
+              <th><%= t("analyses.index.status") %></th>
+              <th><%= t("analyses.index.params") %></th>
+              <th><%= t("analyses.index.created_at") %></th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @history.each do |analysis| %>
+              <tr>
+                <td>
+                  <span class="fw-bold">
+                    <%= t("analyses.algorithms.#{analysis.algorithm}") %>
+                  </span>
+                </td>
+                <td><%= render "status_badge", analysis: analysis %></td>
+                <td>
+                  <small class="text-muted">
+                    <% if analysis.algorithm == "clustering" %>
+                      k=<%= analysis.n_clusters %>,
+                    <% end %>
+                    <% unless analysis.algorithm == "survival" %>
+                      genes=<%= analysis.n_top_genes %>
+                    <% end %>
+                  </small>
+                </td>
+                <td>
+                  <small class="text-muted">
+                    <%= l analysis.created_at, format: :short %>
+                  </small>
+                </td>
+                <td class="text-end">
+                  <%= link_to t("analyses.index.view"),
+                      dashboard_analysis_path(@dashboard, analysis),
+                      class: "btn btn-sm btn-outline-primary" %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  <% end %>
+
+</div>

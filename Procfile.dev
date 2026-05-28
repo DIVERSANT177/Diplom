@@ -1,2 +1,3 @@
-web: bin/rails server -p 3000
+web: ADMIN_EMAIL=iv.ya@list.ru bin/rails server -p 3000
+worker: ADMIN_EMAIL=iv.ya@list.ru bundle exec sidekiq
 css: bin/rails dartsass:watch

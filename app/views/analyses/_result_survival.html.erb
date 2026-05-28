@@ -1,0 +1,198 @@
+<%# app/views/analyses/_result_survival.html.erb %>
+<% result = analysis.result %>
+<% model_type = result["model_type"] || "ridge" %>
+<% training_info = result["training_info"] || {} %>
+
+<div class="d-flex align-items-center gap-2 mb-3 small flex-wrap">
+  <span class="badge bg-primary"><%= t("analyses.show.model.#{model_type}") %></span>
+  <% if training_info["reg_param"] %>
+    <span class="badge bg-light text-dark border">
+      reg_param = <%= training_info["reg_param"] %>
+    </span>
+  <% end %>
+  <% if analysis.params["n_top_genes"] %>
+    <span class="badge bg-light text-dark border">
+      n_top_genes = <%= analysis.params["n_top_genes"] %>
+    </span>
+  <% end %>
+  <span class="text-muted">· <%= t("analyses.index.created_at") %>: <%= l analysis.created_at, format: :short %></span>
+  <% if model_type == "cox" && training_info["n_iter"] %>
+    <span class="text-muted">
+      · <%= t(training_info["converged"] ? "analyses.show.cox_iters_converged"
+                                          : "analyses.show.cox_iters_not_converged",
+              n: training_info["n_iter"]) %>
+    </span>
+  <% end %>
+  <% if result["n_events_train"] %>
+    <span class="text-muted">
+      · <%= t("analyses.show.events_count",
+              train: result["n_events_train"], test: result["n_events_test"]) %>
+    </span>
+  <% end %>
+</div>
+
+<%# Stats %>
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card">
+      <div class="stat-value"><%= result["n_cases"] %></div>
+      <div class="stat-label"><%= t("analyses.show.n_cases") %></div>
+      <div class="stat-hint text-muted small">
+        <%= t("analyses.show.train_test_split", train: result["n_train"], test: result["n_test"]) %>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card">
+      <div class="stat-value"><%= result["c_index_test"] || "—" %></div>
+      <div class="stat-label"><%= t("analyses.show.c_index_test") %></div>
+      <div class="stat-hint text-muted small"><%= t("analyses.show.c_index_test_hint") %></div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card">
+      <div class="stat-value"><%= result["c_index_train"] || "—" %></div>
+      <div class="stat-label"><%= t("analyses.show.c_index_train") %></div>
+      <div class="stat-hint text-muted small"><%= t("analyses.show.c_index_train_hint") %></div>
+    </div>
+  </div>
+  <% if result["c_index_train"] && result["c_index_test"] %>
+    <% gap = (result["c_index_train"] - result["c_index_test"]).round(3) %>
+    <div class="col-sm-6 col-lg-3">
+      <div class="stat-card">
+        <div class="stat-value <%= 'text-warning' if gap > 0.15 %>"><%= gap %></div>
+        <div class="stat-label"><%= t("analyses.show.overfitting_gap") %></div>
+        <div class="stat-hint text-muted small"><%= t("analyses.show.overfitting_gap_hint") %></div>
+      </div>
+    </div>
+  <% end %>
+</div>
+
+<%# Coefficients chart %>
+<div class="card chart-card mb-4">
+  <div class="card-header">
+    <%= t("analyses.show.coefficients") %>
+    <small class="text-muted ms-2">
+      <%= t(model_type == "cox" ? "analyses.show.coefficients_note_cox"
+                                  : "analyses.show.coefficients_note") %>
+    </small>
+  </div>
+  <div class="card-body">
+    <div id="coefChart" style="height: 400px;"></div>
+  </div>
+</div>
+
+<%# Population survival curve %>
+<div class="card chart-card mb-4">
+  <div class="card-header"><%= t("analyses.show.survival_curve") %></div>
+  <div class="card-body">
+    <div id="survivalChart" style="height: 400px;"></div>
+  </div>
+</div>
+
+<%# Cluster survival curves %>
+<% if result["cluster_curves"].any? %>
+  <div class="card chart-card mb-4">
+    <div class="card-header"><%= t("analyses.show.cluster_survival_curves") %></div>
+    <div class="card-body">
+      <div id="clusterSurvivalChart" style="height: 400px;"></div>
+    </div>
+  </div>
+<% end %>
+
+<script>
+  (() => {
+    const colors = ["#6366f1", "#f472b6", "#22c55e", "#f59e0b", "#06b6d4"];
+    const I18N = {
+      coefficients:     "<%= t('analyses.show.coefficients') %>",
+      coefficient:      "<%= t('analyses.show.coefficient') %>",
+      coefficientValue: "<%= t('analyses.show.coefficient_value') %>",
+      standardized:     "<%= t('analyses.show.standardized_coefficient') %>",
+      raw:              "<%= t('analyses.show.raw_coefficient') %>",
+      featureStd:       "<%= t('analyses.show.feature_std') %>",
+      logHazardRatio:   "<%= t('analyses.show.log_hazard_ratio') %>",
+      hazardRatio:      "<%= t('analyses.show.hazard_ratio') %>",
+      population:       "<%= t('analyses.show.population') %>",
+      days:             "<%= t('analyses.show.days') %>",
+      survivalProb:     "<%= t('analyses.show.survival_probability') %>",
+      cluster:          "<%= t('analyses.show.cluster') %>"
+    };
+
+    const isCox = "<%= model_type %>" === "cox";
+
+    // Coefficients chart:
+    // — для Cox: на оси log(HR) = raw coefficient (фичи уже стандартизованы,
+    //   поэтому raw coef — это log HR per 1 SD). HR > 1 (positive coef) → риск.
+    // — для Ridge: показываем standardized coefficient, т.к. raw зависит от
+    //   масштаба признака (бинарные vs непрерывные).
+    const coefs = <%= result["coefficients"].to_json.html_safe %>;
+    const hasStd = coefs[0] && "standardized_coefficient" in coefs[0];
+    const xField = isCox ? "coefficient"
+                         : (hasStd ? "standardized_coefficient" : "coefficient");
+    const xTitle = isCox ? I18N.logHazardRatio : I18N.standardized;
+
+    const coxHover =
+      `<b>%{y}</b><br>` +
+      `${I18N.hazardRatio}: %{customdata[2]:.3f}<br>` +
+      `log(HR): %{x:.4f}<br>` +
+      `${I18N.featureStd}: %{customdata[1]:.4f}` +
+      `<extra></extra>`;
+    const ridgeHover =
+      `<b>%{y}</b><br>` +
+      `${I18N.standardized}: %{x:.4f}<br>` +
+      `${I18N.raw}: %{customdata[0]:.4f}<br>` +
+      `${I18N.featureStd}: %{customdata[1]:.4f}` +
+      `<extra></extra>`;
+
+    Plotly.newPlot("coefChart", [{
+      type: "bar",
+      orientation: "h",
+      x: coefs.map(c => c[xField]).reverse(),
+      y: coefs.map(c => c.feature).reverse(),
+      marker: {
+        color: coefs.map(c => c.direction === "protective" ? "#22c55e" : "#ef4444").reverse()
+      },
+      customdata: coefs.map(c => [c.coefficient, c.feature_std || 0, c.hazard_ratio]).reverse(),
+      hovertemplate: isCox ? coxHover : ridgeHover
+    }], {
+      title: I18N.coefficients,
+      xaxis: { title: xTitle, zeroline: true },
+      yaxis: { automargin: true },
+      margin: { l: 140, r: 40, t: 60, b: 60 }
+    }, { responsive: true });
+
+    // Population survival curve
+    const curve = <%= result["survival_curve"].to_json.html_safe %>;
+    Plotly.newPlot("survivalChart", [{
+      type: "scatter",
+      mode: "lines",
+      x: curve.map(p => p.time),
+      y: curve.map(p => p.survival),
+      line: { color: "#6366f1", shape: "hv" },
+      name: I18N.population
+    }], {
+      xaxis: { title: I18N.days },
+      yaxis: { title: I18N.survivalProb, range: [0, 1.05] },
+      margin: { t: 40 }
+    }, { responsive: true });
+
+    // Cluster curves
+    <% if result["cluster_curves"].any? %>
+      const clusterCurves = <%= result["cluster_curves"].to_json.html_safe %>;
+      const clusterTraces = Object.entries(clusterCurves).map(([clusterId, pts], i) => ({
+        type: "scatter",
+        mode: "lines",
+        x: pts.map(p => p.time),
+        y: pts.map(p => p.survival),
+        line: { color: colors[i % colors.length], shape: "hv" },
+        name: `${I18N.cluster} ${clusterId}`
+      }));
+
+      Plotly.newPlot("clusterSurvivalChart", clusterTraces, {
+        xaxis: { title: I18N.days },
+        yaxis: { title: I18N.survivalProb, range: [0, 1.05] },
+        margin: { t: 40 }
+      }, { responsive: true });
+    <% end %>
+  })();
+</script>

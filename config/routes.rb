@@ -1,4 +1,17 @@
+require "sidekiq/web"
+
 Rails.application.routes.draw do
+  post "locale", to: "locales#update", as: :switch_locale
+
+  resources :dashboards do
+    member do
+      get :heatmap_data
+      post :export_pdf
+      get  :download_pdf
+    end
+    resources :analyses, only: [ :index, :new, :create, :show ]
+    resource  :prediction, only: [ :new, :create ], controller: "predictions"
+  end
   devise_for :users
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
@@ -11,7 +24,13 @@ Rails.application.routes.draw do
   # get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
 
   # Defines the root path route ("/")
+  # Sidekiq web виден только пользователю с email == ENV["ADMIN_EMAIL"].
+  # Без выставленного ENV доступ закрыт всем — fail-closed по умолчанию.
+  authenticated :user, ->(user) { ENV["ADMIN_EMAIL"].present? && user.email == ENV["ADMIN_EMAIL"] } do
+    mount Sidekiq::Web => "/sidekiq"
+  end
+
   devise_scope :user do
-    root to: "devise/sessions#new"
+    root to: "devise/sessions#new"  # Перенаправит на логин
   end
 end

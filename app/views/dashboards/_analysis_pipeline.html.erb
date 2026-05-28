@@ -1,0 +1,278 @@
+<%# app/views/dashboards/_analysis_pipeline.html.erb %>
+<% data_ready = dashboard.status == "ready" && dashboard.expression_status == "ready" %>
+
+<div class="card mb-4">
+  <div class="card-header">
+    <h5 class="mb-0"><%= t("pipeline.title") %></h5>
+  </div>
+
+  <div class="card-body">
+    <% unless data_ready %>
+      <div class="alert alert-warning mb-0">
+        <% if dashboard.status != "ready" %>
+          <%= t("pipeline.waiting_cases") %>
+        <% else %>
+          <%= t("pipeline.waiting_expression") %>
+        <% end %>
+      </div>
+    <% else %>
+
+      <%# ─── Визуальный пайплайн ─── %>
+      <div class="d-flex align-items-center justify-content-center gap-1 mb-4 flex-wrap">
+        <% %w[feature_importance clustering survival].each_with_index do |algo, i| %>
+          <% analysis = pipeline[algo] %>
+          <% status_class = if analysis&.ready?
+               "bg-success text-white"
+             elsif analysis&.running? || analysis&.pending?
+               "bg-info text-white"
+             elsif analysis&.error?
+               "bg-danger text-white"
+             else
+               "bg-light text-muted border"
+             end %>
+          <div class="pipeline-step <%= status_class %>">
+            <div class="fw-bold small"><%= t("analyses.algorithms.#{algo}") %></div>
+            <% if analysis %>
+              <div class="small">
+                <%= t("analyses.status.#{analysis.status}") %>
+                <%= analysis.ready? ? "&#10003;".html_safe : analysis.error? ? "&#10007;".html_safe : "" %>
+              </div>
+            <% else %>
+              <div class="small"><%= t("pipeline.not_started") %></div>
+            <% end %>
+          </div>
+          <% if i < 2 %>
+            <div class="pipeline-arrow">&rarr;</div>
+          <% end %>
+        <% end %>
+      </div>
+
+      <%# ─── Шаг 1: Feature Importance ─── %>
+      <% fi = pipeline["feature_importance"] %>
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>
+            <strong><%= t("pipeline.step", n: 1) %>.</strong>
+            <%= t("analyses.algorithms.feature_importance") %>
+          </span>
+          <div class="d-flex gap-2 align-items-center">
+            <% if fi&.ready? %>
+              <span class="badge bg-success"><%= t("analyses.status.ready") %></span>
+              <%= link_to t("pipeline.details"), dashboard_analysis_path(dashboard, fi),
+                  class: "btn btn-outline-primary btn-sm" %>
+            <% elsif fi&.running? || fi&.pending? %>
+              <span class="badge bg-info"><%= t("analyses.status.running") %></span>
+              <div class="spinner-border spinner-border-sm text-info"></div>
+            <% elsif fi&.error? %>
+              <span class="badge bg-danger"><%= t("analyses.status.error") %></span>
+              <%= link_to t("pipeline.retry"), new_dashboard_analysis_path(dashboard, algorithm: "feature_importance"),
+                  class: "btn btn-outline-danger btn-sm" %>
+            <% else %>
+              <%= form_with url: dashboard_analyses_path(dashboard), method: :post, class: "d-inline" do %>
+                <input type="hidden" name="analysis[algorithm]" value="feature_importance">
+                <input type="hidden" name="analysis[params][n_top_genes]" value="<%= dashboard.top_genes_count %>">
+                <input type="hidden" name="analysis[params][n_trees]" value="100">
+
+                <input type="submit" value="<%= t("pipeline.run") %>" class="btn btn-primary btn-sm">
+              <% end %>
+            <% end %>
+          </div>
+        </div>
+
+        <% if fi&.ready? && fi.result["top_genes"].present? %>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-4">
+                <div class="text-muted small mb-1"><%= t("analyses.show.n_cases") %></div>
+                <div class="fs-5 fw-bold"><%= fi.result["n_cases"] %></div>
+              </div>
+              <div class="col-md-4">
+                <div class="text-muted small mb-1"><%= t("analyses.show.n_genes_total") %></div>
+                <div class="fs-5 fw-bold"><%= fi.result["n_genes_total"] %></div>
+              </div>
+              <div class="col-md-4">
+                <div class="text-muted small mb-1"><%= t("analyses.show.n_trees") %></div>
+                <div class="fs-5 fw-bold"><%= fi.result["n_trees"] %></div>
+              </div>
+            </div>
+            <hr>
+            <h6><%= t("pipeline.top_genes_preview") %></h6>
+            <div id="pipelineFiChart" style="height: 300px;"></div>
+            <script>
+              (() => {
+                const genes = <%= fi.result["top_genes"].first(15).map { |g| g["gene"] }.to_json.html_safe %>;
+                const importances = <%= fi.result["top_genes"].first(15).map { |g| g["importance"] }.to_json.html_safe %>;
+                Plotly.newPlot("pipelineFiChart", [{
+                  type: "bar", orientation: "h",
+                  x: importances.slice().reverse(),
+                  y: genes.slice().reverse(),
+                  marker: { color: "#6366f1" },
+                  hovertemplate: "<b>%{y}</b><br>%{x:.4f}<extra></extra>"
+                }], {
+                  margin: { l: 110, r: 20, t: 10, b: 30 },
+                  xaxis: { title: "<%= t('analyses.show.importance') %>" },
+                  yaxis: { automargin: true }
+                }, { responsive: true });
+              })();
+            </script>
+          </div>
+        <% elsif fi&.error? %>
+          <div class="card-body">
+            <div class="alert alert-danger mb-0 small"><%= fi.error_message %></div>
+          </div>
+        <% end %>
+      </div>
+
+      <%# ─── Шаг 2: Кластеризация ─── %>
+      <% cl = pipeline["clustering"] %>
+      <% fi_ready = fi&.ready? %>
+      <div class="card mb-3 <%= "opacity-50" unless fi_ready %>">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>
+            <strong><%= t("pipeline.step", n: 2) %>.</strong>
+            <%= t("analyses.algorithms.clustering") %>
+          </span>
+          <div class="d-flex gap-2 align-items-center">
+            <% if cl&.ready? %>
+              <span class="badge bg-success"><%= t("analyses.status.ready") %></span>
+              <%= link_to t("pipeline.details"), dashboard_analysis_path(dashboard, cl),
+                  class: "btn btn-outline-primary btn-sm" %>
+            <% elsif cl&.running? || cl&.pending? %>
+              <span class="badge bg-info"><%= t("analyses.status.running") %></span>
+              <div class="spinner-border spinner-border-sm text-info"></div>
+            <% elsif cl&.error? %>
+              <span class="badge bg-danger"><%= t("analyses.status.error") %></span>
+              <%= link_to t("pipeline.retry"), new_dashboard_analysis_path(dashboard, algorithm: "clustering"),
+                  class: "btn btn-outline-danger btn-sm" %>
+            <% elsif fi_ready %>
+              <%= form_with url: dashboard_analyses_path(dashboard), method: :post, class: "d-inline" do %>
+                <input type="hidden" name="analysis[algorithm]" value="clustering">
+                <input type="hidden" name="analysis[params][n_top_genes]" value="<%= dashboard.top_genes_count %>">
+                <input type="hidden" name="analysis[params][n_clusters]" value="3">
+
+                <input type="submit" value="<%= t("pipeline.run") %>" class="btn btn-primary btn-sm">
+              <% end %>
+            <% else %>
+              <span class="badge bg-secondary"><%= t("pipeline.requires_previous") %></span>
+            <% end %>
+          </div>
+        </div>
+
+        <% if cl&.ready? && cl.result["cluster_stats"].present? %>
+          <div class="card-body">
+            <div class="row mb-3">
+              <div class="col-md-4">
+                <div class="text-muted small mb-1"><%= t("analyses.show.n_clusters") %></div>
+                <div class="fs-5 fw-bold"><%= cl.result["n_clusters"] %></div>
+              </div>
+              <div class="col-md-4">
+                <div class="text-muted small mb-1"><%= t("analyses.show.silhouette_score") %></div>
+                <div class="fs-5 fw-bold"><%= cl.result["silhouette_score"] %></div>
+              </div>
+              <div class="col-md-4">
+                <div class="text-muted small mb-1"><%= t("analyses.show.n_cases") %></div>
+                <div class="fs-5 fw-bold"><%= cl.result["n_cases"] %></div>
+              </div>
+            </div>
+            <table class="table table-sm table-hover mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th><%= t("analyses.show.cluster") %></th>
+                  <th><%= t("analyses.show.n_patients") %></th>
+                  <th><%= t("analyses.show.mortality_rate") %></th>
+                  <th><%= t("analyses.show.median_age") %></th>
+                  <th><%= t("analyses.show.median_survival") %></th>
+                </tr>
+              </thead>
+              <tbody>
+                <% cl.result["cluster_stats"].each do |stat| %>
+                  <tr>
+                    <td><span class="badge bg-primary"><%= t("analyses.show.cluster") %> <%= stat["cluster"] %></span></td>
+                    <td><%= stat["n_patients"] %></td>
+                    <td><%= "#{(stat["mortality_rate"] * 100).round(1)}%" %></td>
+                    <td><%= stat["median_age"] || t("common.no_data") %></td>
+                    <td><%= stat["median_survival"] ? "#{stat["median_survival"].to_i} #{t('common.days_short')}" : t("common.no_data") %></td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% elsif cl&.error? %>
+          <div class="card-body">
+            <div class="alert alert-danger mb-0 small"><%= cl.error_message %></div>
+          </div>
+        <% end %>
+      </div>
+
+      <%# ─── Шаг 3: Прогноз выживаемости ─── %>
+      <% sv = pipeline["survival"] %>
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>
+            <strong><%= t("pipeline.step", n: 3) %>.</strong>
+            <%= t("analyses.algorithms.survival") %>
+            <% unless cl&.ready? %>
+              <span class="text-muted small ms-1">(<%= t("pipeline.works_without_clustering") %>)</span>
+            <% end %>
+          </span>
+          <div class="d-flex gap-2 align-items-center">
+            <% if sv&.ready? %>
+              <span class="badge bg-success"><%= t("analyses.status.ready") %></span>
+              <%= link_to t("pipeline.details"), dashboard_analysis_path(dashboard, sv),
+                  class: "btn btn-outline-primary btn-sm" %>
+            <% elsif sv&.running? || sv&.pending? %>
+              <span class="badge bg-info"><%= t("analyses.status.running") %></span>
+              <div class="spinner-border spinner-border-sm text-info"></div>
+            <% elsif sv&.error? %>
+              <span class="badge bg-danger"><%= t("analyses.status.error") %></span>
+              <%= link_to t("pipeline.retry"), new_dashboard_analysis_path(dashboard, algorithm: "survival"),
+                  class: "btn btn-outline-danger btn-sm" %>
+            <% else %>
+              <%= form_with url: dashboard_analyses_path(dashboard), method: :post, class: "d-inline" do %>
+                <input type="hidden" name="analysis[algorithm]" value="survival">
+                <input type="hidden" name="analysis[params][n_top_genes]" value="<%= dashboard.top_genes_count %>">
+
+                <input type="submit" value="<%= t("pipeline.run") %>" class="btn btn-primary btn-sm">
+              <% end %>
+            <% end %>
+          </div>
+        </div>
+
+        <% if sv&.ready? && sv.result["coefficients"].present? %>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-6 col-md-3">
+                <div class="text-muted small mb-1"><%= t("analyses.show.n_cases") %></div>
+                <div class="fs-5 fw-bold"><%= sv.result["n_cases"] %></div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="text-muted small mb-1"><%= t("pipeline.n_features") %></div>
+                <div class="fs-5 fw-bold"><%= sv.result["feature_names"]&.length %></div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="text-muted small mb-1"><%= t("analyses.show.c_index_test") %></div>
+                <div class="fs-5 fw-bold"><%= sv.result["c_index_test"] || "—" %></div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="text-muted small mb-1"><%= t("analyses.show.c_index_train") %></div>
+                <div class="fs-5 fw-bold"><%= sv.result["c_index_train"] || "—" %></div>
+              </div>
+            </div>
+          </div>
+        <% elsif sv&.error? %>
+          <div class="card-body">
+            <div class="alert alert-danger mb-0 small"><%= sv.error_message %></div>
+          </div>
+        <% end %>
+      </div>
+
+      <%# ─── Ссылка на расширенные настройки ─── %>
+      <div class="text-center">
+        <%= link_to new_dashboard_analysis_path(dashboard), class: "btn btn-outline-secondary btn-sm" do %>
+          <%= t("pipeline.advanced_settings") %>
+        <% end %>
+      </div>
+
+    <% end %>
+  </div>
+</div>

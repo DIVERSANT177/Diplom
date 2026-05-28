@@ -1,0 +1,113 @@
+<%# app/views/predictions/new.html.erb %>
+<% content_for :head do %>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<% end %>
+
+<div class="container py-4">
+
+  <div class="page-header d-flex align-items-center justify-content-between">
+    <div>
+      <h1><%= t("predictions.title") %></h1>
+      <p class="text-muted mb-0">
+        <%= @dashboard.title %> &mdash; <%= @dashboard.projects&.join(", ") %>
+      </p>
+    </div>
+    <%= link_to dashboard_analyses_path(@dashboard), class: "btn btn-outline-secondary" do %>
+      <%= t("pipeline.back_to_analyses") %>
+    <% end %>
+  </div>
+
+  <% if flash[:alert] %>
+    <div class="alert alert-danger mt-3"><%= flash[:alert] %></div>
+  <% end %>
+
+  <div class="row mt-4">
+
+    <%# Форма ввода %>
+    <div class="col-lg-5">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><%= t("predictions.patient_data") %></h5>
+        </div>
+        <div class="card-body">
+          <%= form_with url: dashboard_prediction_path(@dashboard),
+                method: :post, multipart: true, local: true,
+                data: { turbo: false } do |f| %>
+
+            <%= hidden_field_tag :analysis_id, @analysis.id %>
+
+            <div class="mb-3">
+              <label class="form-label"><%= t("predictions.age") %></label>
+              <%= number_field_tag :age, @clinical&.dig(:age) || 60,
+                  min: 0, max: 120, required: true, class: "form-control" %>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label"><%= t("predictions.gender") %></label>
+              <%= select_tag :gender,
+                  options_for_select(
+                    [
+                      [ t("predictions.genders.male"),   "male" ],
+                      [ t("predictions.genders.female"), "female" ]
+                    ],
+                    @clinical&.dig(:gender)
+                  ),
+                  class: "form-select" %>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label"><%= t("predictions.stage") %></label>
+              <%= select_tag :stage,
+                  options_for_select(
+                    [
+                      [ "Stage I",   "stage_i" ],
+                      [ "Stage II",  "stage_ii" ],
+                      [ "Stage III", "stage_iii" ],
+                      [ "Stage IV",  "stage_iv" ],
+                      [ t("predictions.stage_unknown"), "unknown" ]
+                    ],
+                    @clinical&.dig(:stage) || "stage_ii"
+                  ),
+                  class: "form-select" %>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label"><%= t("predictions.expression_file") %></label>
+              <%= file_field_tag :expression_file,
+                  accept: ".tsv,.tsv.gz,.txt,.gz",
+                  required: true, class: "form-control" %>
+              <div class="form-text">
+                <%= t("predictions.expression_file_hint") %>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">
+              <%= t("predictions.submit") %>
+            </button>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <%# Результат %>
+    <div class="col-lg-7">
+      <% if @result %>
+        <%= render "result", result: @result, analysis: @analysis %>
+      <% else %>
+        <div class="card">
+          <div class="card-body text-muted">
+            <p class="mb-2"><%= t("predictions.intro") %></p>
+            <ul class="mb-0">
+              <li><%= t("predictions.intro_step_1") %></li>
+              <li><%= t("predictions.intro_step_2") %></li>
+              <li><%= t("predictions.intro_step_3") %></li>
+            </ul>
+            <hr>
+            <p class="small mb-0"><%= t("predictions.disclaimer") %></p>
+          </div>
+        </div>
+      <% end %>
+    </div>
+
+  </div>
+</div>

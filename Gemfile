@@ -28,7 +28,27 @@ gem "solid_cache"
 gem "solid_queue"
 gem "solid_cable"
 
-gem 'bootstrap', '~> 5.3.8'
+gem "bootstrap", "~> 5.3.8"
+
+# HTTP client library abstraction layer
+gem "faraday"
+
+gem "sidekiq"
+
+gem "redis"
+
+gem "minitar"
+
+gem "devise-i18n"
+
+gem "rumale", "~> 1.0"
+gem "rumale-linear_model", "~> 1.0"  # Lasso
+gem "rumale-ensemble", "~> 1.0"      # Random Forest
+gem "rumale-clustering", "~> 1.0"
+
+gem "prawn", "~> 2.5"
+gem "prawn-table", "~> 0.2"
+
 
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false
@@ -51,6 +71,14 @@ group :development, :test do
 
   # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
   gem "rubocop-rails-omakase", require: false
+
+  gem "rspec-rails", "~> 7.1"
+  gem "factory_bot_rails"
+end
+
+group :test do
+  gem "shoulda-matchers", "~> 6.0"
+  gem "database_cleaner-active_record"
 end
 
 group :development do
@@ -62,6 +90,7 @@ group :test do
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "capybara"
   gem "selenium-webdriver"
+  gem "rails-controller-testing"
 end
 
 gem "dartsass-rails", "~> 0.5.1"

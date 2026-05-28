@@ -1,0 +1,421 @@
+<% content_for :head do %>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<% end %>
+
+<script>
+  // Safe init helper: runs `fn` only once Plotly is loaded.
+  // Needed because under Turbo Drive, scripts added to <head> during
+  // navigation are loaded asynchronously while inline body scripts
+  // execute immediately as the body is parsed.
+  window.withPlotly = window.withPlotly || function (fn) {
+    if (typeof Plotly !== 'undefined') return fn();
+    const iv = setInterval(() => {
+      if (typeof Plotly !== 'undefined') { clearInterval(iv); fn(); }
+    }, 50);
+  };
+</script>
+
+<div class="container py-4">
+
+  <%# Page header %>
+  <div class="page-header d-flex align-items-center justify-content-between">
+    <div>
+      <h1><%= @dashboard.title %></h1>
+      <p class="text-muted mb-0"><%= @dashboard.projects&.join(", ") %></p>
+    </div>
+    <div class="d-flex gap-2">
+      <% if @dashboard.status == "ready" %>
+        <%= link_to dashboard_analyses_path(@dashboard), class: "btn btn-primary" do %>
+          <%= t("pipeline.go_to_analysis") %>
+          <% count = @dashboard.analyses.where(status: "ready").count %>
+          <% if count > 0 %>
+            <span class="badge bg-light text-primary ms-1"><%= count %></span>
+          <% end %>
+        <% end %>
+      <% end %>
+      <%= link_to t('dashboards.index.back'), dashboards_path, class: "btn btn-outline-secondary" %>
+    </div>
+  </div>
+
+  <%= turbo_stream_from "dashboard_#{@dashboard.id}" %>
+
+  <%# Stat cards %>
+  <div id="<%= dom_id @dashboard %>">
+    <%= render @dashboard %>
+    <% if @dashboard.status.in?(%w[draft fetching]) %>
+      <div class="alert alert-info d-flex align-items-center gap-3 mt-3">
+        <div class="spinner-border spinner-border-sm" role="status"></div>
+        <span><%= t('dashboards.show.loading') %></span>
+      </div>
+    <% end %>
+  </div>
+
+  <%# Clinical Summary %>
+  <% if @dashboard.visualizations.include?("clinical_summary") && @dashboard.status == "ready" %>
+    <div class="card chart-card mt-4">
+      <div class="card-header">
+        <h5 class="mb-0"><%= t('dashboards.visualizations.clinical_summary') %></h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-4">
+          <div class="col-md-4">
+            <h6 class="text-center text-muted"><%= t('dashboards.show.gender') %></h6>
+            <div id="genderChart" style="width: 100%; height: 260px;"></div>
+          </div>
+          <div class="col-md-4">
+            <h6 class="text-center text-muted"><%= t('dashboards.show.vital_status') %></h6>
+            <div id="vitalStatusChart" style="width: 100%; height: 260px;"></div>
+          </div>
+          <div class="col-md-4">
+            <h6 class="text-center text-muted"><%= t('dashboards.show.age_groups') %></h6>
+            <div id="ageChart" style="width: 100%; height: 260px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      withPlotly(() => {
+        const genderData = <%= @clinical_summary[:gender].to_json.html_safe %>;
+        const vitalData  = <%= @clinical_summary[:vital_status].to_json.html_safe %>;
+        const ageData    = <%= @clinical_summary[:age_groups].to_json.html_safe %>;
+
+        const genderColors = {
+          'male':         '#6366f1',
+          'female':       '#f472b6',
+          'not reported': '#94a3b8',
+          'unknown':      '#cbd5e1'
+        };
+
+        const vitalColors = {
+          'Alive':        '#22c55e',
+          'Dead':         '#ef4444',
+          'Not Reported': '#94a3b8'
+        };
+
+        const pieLayout = {
+          margin: { t: 10, b: 10, l: 10, r: 10 },
+          showlegend: true,
+          legend: { orientation: 'h', y: -0.1 }
+        };
+        const plotlyConfig = { responsive: true, displayModeBar: false };
+
+        Plotly.newPlot('genderChart', [{
+          type: 'pie',
+          labels: Object.keys(genderData),
+          values: Object.values(genderData),
+          marker: { colors: Object.keys(genderData).map(k => genderColors[k] || '#94a3b8') },
+          textinfo: 'percent',
+          hovertemplate: '%{label}: %{value}<extra></extra>'
+        }], pieLayout, plotlyConfig);
+
+        Plotly.newPlot('vitalStatusChart', [{
+          type: 'pie',
+          labels: Object.keys(vitalData),
+          values: Object.values(vitalData),
+          marker: { colors: Object.keys(vitalData).map(k => vitalColors[k] || '#94a3b8') },
+          textinfo: 'percent',
+          hovertemplate: '%{label}: %{value}<extra></extra>'
+        }], pieLayout, plotlyConfig);
+
+        Plotly.newPlot('ageChart', [{
+          type: 'bar',
+          x: Object.keys(ageData),
+          y: Object.values(ageData),
+          text: Object.values(ageData),
+          textposition: 'outside',
+          cliponaxis: false,
+          marker: { color: '#6366f1' },
+          hovertemplate: '%{x}: %{y}<extra></extra>'
+        }], {
+          margin: { t: 20, b: 40, l: 40, r: 10 },
+          yaxis: { title: '<%= t('dashboards.show.patients') %>', rangemode: 'tozero' },
+          xaxis: { fixedrange: true }
+        }, plotlyConfig);
+      });
+    </script>
+  <% end %>
+
+  <%# Kaplan-Meier %>
+  <% if @dashboard.visualizations.include?("kaplan_meier") && @dashboard.status == "ready" %>
+    <div class="card chart-card mt-4">
+      <div class="card-header">
+        <h5 class="mb-0"><%= t('dashboards.visualizations.kaplan_meier') %> (<%= @dashboard.survival_endpoint %>)</h5>
+      </div>
+      <div class="card-body">
+        <div id="kmChart" style="width: 100%; height: 420px;"></div>
+      </div>
+    </div>
+
+    <script>
+      withPlotly(() => {
+        const kmData = <%= @kaplan_meier.to_json.html_safe %>;
+        const colors = [
+          '#6366f1', '#f472b6', '#22c55e', '#f59e0b', '#ef4444',
+          '#06b6d4', '#a855f7', '#84cc16', '#f97316', '#14b8a6',
+          '#e11d48', '#8b5cf6', '#10b981', '#fbbf24', '#3b82f6'
+        ];
+
+        const traces = Object.entries(kmData).map(([group, points], i) => ({
+          type: 'scatter',
+          mode: 'lines',
+          name: group,
+          x: points.map(p => p.time),
+          y: points.map(p => p.survival * 100),
+          line: { shape: 'hv', color: colors[i % colors.length], width: 2 },
+          hovertemplate: '%{x} — %{y:.1f}%<extra>' + group + '</extra>'
+        }));
+
+        Plotly.newPlot('kmChart', traces, {
+          margin: { t: 20, b: 50, l: 60, r: 20 },
+          xaxis: { title: '<%= t('dashboards.show.days') %>', rangemode: 'tozero' },
+          yaxis: { title: '<%= t('dashboards.show.survival_pct') %>', range: [0, 100] },
+          legend: { orientation: 'h', y: 1.1 },
+          hovermode: 'closest'
+        }, { responsive: true, displayModeBar: false });
+      });
+    </script>
+  <% end %>
+
+  <%# Heatmap %>
+  <% if @dashboard.visualizations.include?("heatmap") %>
+    <div class="card chart-card mt-4">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="mb-0"><%= t('dashboards.visualizations.heatmap') %></h5>
+      </div>
+      <div class="card-body">
+        <% if @dashboard.expression_status == "ready" %>
+
+          <%# Controls %>
+          <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="heatmapToggleLabels" checked>
+              <label class="form-check-label" for="heatmapToggleLabels">
+                <%= t('dashboards.show.show_labels') %>
+              </label>
+            </div>
+
+            <div class="d-flex align-items-center gap-2">
+              <label class="form-label mb-0 small"><%= t('dashboards.show.samples_per_page') %>:</label>
+              <select id="heatmapPerPage" class="form-select form-select-sm" style="width: auto;">
+                <option value="50">50</option>
+                <option value="100" selected>100</option>
+                <option value="150">150</option>
+                <option value="200">200</option>
+              </select>
+            </div>
+          </div>
+
+          <%# Spinner %>
+          <div id="heatmapLoading" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted"><%= t('dashboards.show.heatmap_loading') %></p>
+          </div>
+
+          <%# Chart %>
+          <div id="heatmapChart" style="width: 100%; height: 600px; display: none;"></div>
+
+          <%# Pagination %>
+          <nav id="heatmapPagination" class="mt-3" style="display: none;">
+            <div class="d-flex align-items-center justify-content-between">
+              <span id="heatmapInfo" class="text-muted small"></span>
+              <div class="btn-group btn-group-sm">
+                <button id="heatmapPrev" class="btn btn-outline-primary" disabled>&laquo; <%= t('dashboards.show.prev_page') %></button>
+                <button id="heatmapPageInfo" class="btn btn-outline-secondary" disabled></button>
+                <button id="heatmapNext" class="btn btn-outline-primary"><%= t('dashboards.show.next_page') %> &raquo;</button>
+              </div>
+            </div>
+          </nav>
+
+          <script>
+            withPlotly(() => {
+              const DATA_URL  = '<%= heatmap_data_dashboard_path(@dashboard, format: :json) %>';
+              const heatmapDiv = document.getElementById('heatmapChart');
+              const loadingDiv = document.getElementById('heatmapLoading');
+              const paginationDiv = document.getElementById('heatmapPagination');
+
+              let currentPage = 1;
+
+              const i18n = {
+                heatmapTitle:  '<%= t("dashboards.show.heatmap_title") %>',
+                samples:       '<%= t("dashboards.show.samples") %>',
+                genes:         '<%= t("dashboards.show.genes") %>',
+                gender:        '<%= t("dashboards.show.gender") %>',
+                vitalStatus:   '<%= t("dashboards.show.vital_status") %>',
+                showingSamples:'<%= t("dashboards.show.showing_samples") %>'
+              };
+
+              function getPerPage() {
+                return parseInt(document.getElementById('heatmapPerPage').value, 10);
+              }
+
+              function loadHeatmap(page) {
+                currentPage = page;
+                loadingDiv.style.display = 'block';
+                heatmapDiv.style.display = 'none';
+                paginationDiv.style.display = 'none';
+
+                fetch(`${DATA_URL}?page=${page}&per_page=${getPerPage()}`, {
+                  headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content
+                  }
+                })
+                  .then(r => {
+                    if (!r.ok) throw new Error(`Server error: ${r.status}`);
+                    return r.json();
+                  })
+                  .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    loadingDiv.style.display = 'none';
+                    heatmapDiv.style.display = 'block';
+                    paginationDiv.style.display = 'block';
+                    renderHeatmap(data.heatmap);
+                    updatePagination(data);
+                  })
+                  .catch(err => {
+                    loadingDiv.innerHTML = `<p class="text-danger">${err.message}</p>`;
+                  });
+              }
+
+              function renderHeatmap(hd) {
+                const annotations = hd.annotations;
+
+                const genderBar = {
+                  type: 'heatmap',
+                  z: [annotations.map(a => a.gender?.toLowerCase() === 'male' ? 1 : a.gender?.toLowerCase() === 'female' ? -1 : 0)],
+                  x: hd.samples,
+                  colorscale: [['0', '#f472b6'], ['0.5', '#94a3b8'], ['1', '#6366f1']],
+                  showscale: false,
+                  text: [annotations.map(a => `${i18n.gender}: ${a.gender}`)],
+                  hovertemplate: '%{text}<extra></extra>',
+                  xaxis: 'x', yaxis: 'y2'
+                };
+
+                const vitalBar = {
+                  type: 'heatmap',
+                  z: [annotations.map(a => a.vital_status?.toLowerCase() === 'alive' ? 1 : a.vital_status?.toLowerCase() === 'dead' ? -1 : 0)],
+                  x: hd.samples,
+                  colorscale: [['0', '#ef4444'], ['0.5', '#94a3b8'], ['1', '#22c55e']],
+                  zmin: -1, zmax: 1,
+                  showscale: false,
+                  text: [annotations.map(a => `${i18n.vitalStatus}: ${a.vital_status}`)],
+                  hovertemplate: '%{text}<extra></extra>',
+                  xaxis: 'x', yaxis: 'y3'
+                };
+
+                const mainHeatmap = {
+                  type: 'heatmap',
+                  z: hd.matrix,
+                  x: hd.samples,
+                  y: hd.genes,
+                  colorscale: 'RdBu',
+                  colorbar: { title: 'Z-score', y: 0.4, len: 0.7 },
+                  xaxis: 'x', yaxis: 'y',
+                  hovermode: 'closest',
+                  dragmode: 'pan'
+                };
+
+                Plotly.newPlot(heatmapDiv, [genderBar, vitalBar, mainHeatmap], {
+                  title: i18n.heatmapTitle,
+                  autosize: true,
+                  grid: { rows: 3, columns: 1, roworder: 'top to bottom' },
+                  yaxis:  { title: i18n.genes,  tickfont: { size: 9 }, domain: [0, 0.85] },
+                  yaxis2: { domain: [0.88, 0.93], showticklabels: false },
+                  yaxis3: { domain: [0.95, 1.0],  showticklabels: false },
+                  xaxis:  { tickangle: -45, title: i18n.samples, type: 'category',
+                            anchor: 'y', side: 'bottom', automargin: true,
+                            tickfont: { size: 9 } },
+                  margin: { l: 140, r: 40, t: 60, b: 120 },
+                  bargap: 0,
+                  annotations: [
+                    { x: 0, xref: 'paper', y: 0.905, yref: 'paper',
+                      xanchor: 'right', yanchor: 'middle', xshift: -8,
+                      text: i18n.gender, showarrow: false, font: { size: 11 } },
+                    { x: 0, xref: 'paper', y: 0.975, yref: 'paper',
+                      xanchor: 'right', yanchor: 'middle', xshift: -8,
+                      text: i18n.vitalStatus, showarrow: false, font: { size: 11 } }
+                  ]
+                }, { responsive: true, displayModeBar: false });
+
+                Plotly.Plots.resize(heatmapDiv);
+              }
+
+              function updatePagination(data) {
+                const prevBtn = document.getElementById('heatmapPrev');
+                const nextBtn = document.getElementById('heatmapNext');
+                const pageInfo = document.getElementById('heatmapPageInfo');
+                const info = document.getElementById('heatmapInfo');
+
+                prevBtn.disabled = data.page <= 1;
+                nextBtn.disabled = data.page >= data.total_pages;
+                pageInfo.textContent = `${data.page} / ${data.total_pages}`;
+
+                const from = (data.page - 1) * data.per_page + 1;
+                const to   = Math.min(data.page * data.per_page, data.total_samples);
+                info.textContent = `${i18n.showingSamples}: ${from}–${to} / ${data.total_samples}`;
+              }
+
+              document.getElementById('heatmapPrev').addEventListener('click', () => {
+                if (currentPage > 1) loadHeatmap(currentPage - 1);
+              });
+              document.getElementById('heatmapNext').addEventListener('click', () => {
+                loadHeatmap(currentPage + 1);
+              });
+              document.getElementById('heatmapPerPage').addEventListener('change', () => {
+                loadHeatmap(1);
+              });
+
+              const LABELS_ON = {
+                title: i18n.heatmapTitle,
+                'xaxis.title.text': i18n.samples,
+                'xaxis.showticklabels': true,
+                'yaxis.title.text': i18n.genes,
+                'annotations[0].text': i18n.gender,
+                'annotations[1].text': i18n.vitalStatus,
+                'coloraxis.colorbar.title.text': 'Z-score'
+              };
+              const LABELS_OFF = {
+                title: '',
+                'xaxis.title.text': '', 'xaxis.showticklabels': false,
+                'yaxis.title.text': '',
+                'annotations[0].text': '', 'annotations[1].text': '',
+                'coloraxis.colorbar.title.text': ''
+              };
+
+              document.getElementById('heatmapToggleLabels').addEventListener('change', function () {
+                Plotly.relayout(heatmapDiv, this.checked ? LABELS_ON : LABELS_OFF);
+              });
+
+              loadHeatmap(1);
+            });
+          </script>
+
+        <% elsif @dashboard.expression_status == "fetching" %>
+          <div class="d-flex align-items-center gap-3">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+            <span class="text-muted"><%= t('dashboards.show.expression_loading') %></span>
+          </div>
+
+        <% elsif @dashboard.expression_status == "error" %>
+          <div class="alert alert-danger mb-0">
+            <%= t('dashboards.show.expression_error', message: @dashboard.expression_error) %>
+          </div>
+
+        <% else %>
+          <p class="text-muted mb-0"><%= t('dashboards.show.expression_not_loaded') %></p>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+
+  <%# PDF export %>
+  <%= render "pdf_export", dashboard: @dashboard %>
+
+  <%# Bottom actions %>
+  <div class="d-flex gap-2 mt-4 mb-3">
+    <%= button_to t('dashboards.index.delete'), @dashboard, method: :delete,
+        data: { confirm: t('common.confirm_delete') }, class: "btn btn-outline-danger ms-auto" %>
+  </div>
+
+</div>

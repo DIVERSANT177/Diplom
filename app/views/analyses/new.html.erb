@@ -1,0 +1,223 @@
+<%# app/views/analyses/new.html.erb %>
+<div class="container py-4">
+  <div class="page-header">
+    <h1><%= t("analyses.new.title") %></h1>
+    <p class="text-muted"><%= @dashboard.title %></p>
+  </div>
+
+  <%= form_with model: [@dashboard, @analysis], class: "mt-4" do |f| %>
+
+    <%# Algorithm selection %>
+    <div class="mb-4">
+      <label class="form-label fw-bold"><%= t("analyses.new.algorithm") %></label>
+      <div class="row g-3">
+
+        <%# Feature Importance %>
+        <div class="col-md-4">
+          <div class="card h-100 algorithm-card" data-algorithm="feature_importance">
+            <div class="card-body">
+              <div class="form-check">
+                <%= f.radio_button :algorithm, "feature_importance",
+                    class: "form-check-input algorithm-radio",
+                    id: "algo_fi",
+                    checked: @analysis.algorithm.blank? %>
+                <label class="form-check-label fw-bold" for="algo_fi">
+                  <%= t("analyses.algorithms.feature_importance") %>
+                </label>
+              </div>
+              <p class="text-muted small mt-2 mb-0">
+                <%= t("analyses.algorithms.feature_importance_desc") %>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <%# Clustering %>
+        <div class="col-md-4">
+          <div class="card h-100 algorithm-card <%= "opacity-50" unless @fi_ready %>"
+               data-algorithm="clustering">
+            <div class="card-body">
+              <div class="form-check">
+                <%= f.radio_button :algorithm, "clustering",
+                    class: "form-check-input algorithm-radio",
+                    id: "algo_cl",
+                    disabled: !@fi_ready %>
+                <label class="form-check-label fw-bold" for="algo_cl">
+                  <%= t("analyses.algorithms.clustering") %>
+                </label>
+              </div>
+              <p class="text-muted small mt-2 mb-0">
+                <%= t("analyses.algorithms.clustering_desc") %>
+              </p>
+              <% unless @fi_ready %>
+                <span class="badge bg-warning text-dark mt-2">
+                  <%= t("analyses.new.requires_fi") %>
+                </span>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+        <%# Survival %>
+        <div class="col-md-4">
+          <div class="card h-100 algorithm-card <%= "opacity-50" unless @fi_ready %>"
+               data-algorithm="survival">
+            <div class="card-body">
+              <div class="form-check">
+                <%= f.radio_button :algorithm, "survival",
+                    class: "form-check-input algorithm-radio",
+                    id: "algo_sv",
+                    disabled: !@fi_ready %>
+                <label class="form-check-label fw-bold" for="algo_sv">
+                  <%= t("analyses.algorithms.survival") %>
+                </label>
+              </div>
+              <p class="text-muted small mt-2 mb-0">
+                <%= t("analyses.algorithms.survival_desc") %>
+              </p>
+              <% unless @fi_ready %>
+                <span class="badge bg-warning text-dark mt-2">
+                  <%= t("analyses.new.requires_fi") %>
+                </span>
+              <% end %>
+              <% if @fi_ready && !@cl_ready %>
+                <span class="badge bg-secondary mt-2">
+                  <%= t("analyses.new.optional_clustering") %>
+                </span>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <%# Parameters %>
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="mb-0"><%= t("analyses.new.params") %></h5>
+      </div>
+      <div class="card-body">
+
+        <div class="mb-3 param-field" id="param_n_top_genes">
+          <label class="form-label" for="analysis_params_n_top_genes">
+            <%= t("analyses.params.n_top_genes") %>
+          </label>
+          <%= number_field_tag "analysis[params][n_top_genes]",
+              @dashboard.top_genes_count,
+              min: 10, max: 500,
+              id: "analysis_params_n_top_genes",
+              class: "form-control" %>
+          <div class="form-text"><%= t("analyses.params.n_top_genes_hint") %></div>
+        </div>
+
+        <div class="mb-3 param-field" id="param_n_trees">
+          <label class="form-label" for="analysis_params_n_trees">
+            <%= t("analyses.params.n_trees") %>
+          </label>
+          <%= number_field_tag "analysis[params][n_trees]",
+              100, min: 10, max: 500,
+              id: "analysis_params_n_trees",
+              class: "form-control" %>
+          <div class="form-text"><%= t("analyses.params.n_trees_hint") %></div>
+        </div>
+
+        <div class="mb-3 param-field" id="param_n_clusters">
+          <label class="form-label" for="analysis_params_n_clusters">
+            <%= t("analyses.params.n_clusters") %>
+          </label>
+          <%= number_field_tag "analysis[params][n_clusters]",
+              3, min: 2, max: 10,
+              id: "analysis_params_n_clusters",
+              class: "form-control" %>
+          <div class="form-text"><%= t("analyses.params.n_clusters_hint") %></div>
+        </div>
+
+        <div class="mb-3 param-field" id="param_model_type">
+          <label class="form-label">
+            <%= t("analyses.params.model_type") %>
+          </label>
+          <div>
+            <div class="form-check form-check-inline">
+              <%= radio_button_tag "analysis[params][model_type]", "cox", true,
+                  id: "model_type_cox", class: "form-check-input" %>
+              <label for="model_type_cox" class="form-check-label">
+                <%= t("analyses.params.model_cox") %>
+              </label>
+            </div>
+            <div class="form-check form-check-inline">
+              <%= radio_button_tag "analysis[params][model_type]", "ridge", false,
+                  id: "model_type_ridge", class: "form-check-input" %>
+              <label for="model_type_ridge" class="form-check-label">
+                <%= t("analyses.params.model_ridge") %>
+              </label>
+            </div>
+          </div>
+          <div class="form-text"><%= t("analyses.params.model_type_hint") %></div>
+        </div>
+
+        <div class="mb-3 param-field" id="param_reg_param">
+          <label class="form-label" for="analysis_params_reg_param">
+            <%= t("analyses.params.reg_param") %>
+          </label>
+          <%= number_field_tag "analysis[params][reg_param]",
+              1.0, min: 0.01, max: 10.0, step: 0.01,
+              id: "analysis_params_reg_param",
+              class: "form-control" %>
+          <div class="form-text"><%= t("analyses.params.reg_param_hint") %></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <%= f.submit t("analyses.new.submit"), class: "btn btn-primary" %>
+      <%= link_to t("cancel"), dashboard_analyses_path(@dashboard), class: "btn btn-outline-secondary" %>
+    </div>
+
+  <% end %>
+</div>
+
+<script>
+  (() => {
+    const PARAM_VISIBILITY = {
+      feature_importance: ["param_n_top_genes", "param_n_trees"],
+      clustering:         ["param_n_top_genes", "param_n_clusters"],
+      survival:           ["param_model_type", "param_reg_param"]
+    };
+
+    function updateParams(algorithm) {
+      const allParams = ["param_n_top_genes", "param_n_trees", "param_n_clusters", "param_reg_param", "param_model_type"];
+      const visible   = PARAM_VISIBILITY[algorithm] || [];
+
+      allParams.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const isVisible = visible.includes(id);
+        el.style.display = isVisible ? "block" : "none";
+        // Disabled inputs не отправляются формой — иначе в analysis.params
+        // попадали бы значения параметров, не относящихся к выбранному алгоритму.
+        el.querySelectorAll("input").forEach(input => { input.disabled = !isVisible; });
+      });
+    }
+
+    function updateCardStyles(selectedAlgorithm) {
+      document.querySelectorAll(".algorithm-card").forEach(card => {
+        const isSelected = card.dataset.algorithm === selectedAlgorithm;
+        card.classList.toggle("border-primary", isSelected);
+        card.classList.toggle("shadow-sm", isSelected);
+      });
+    }
+
+    document.querySelectorAll(".algorithm-radio").forEach(radio => {
+      radio.addEventListener("change", () => {
+        updateParams(radio.value);
+        updateCardStyles(radio.value);
+      });
+    });
+
+    const selectedRadio = document.querySelector(".algorithm-radio:checked");
+    updateParams(selectedRadio ? selectedRadio.value : null);
+    if (selectedRadio) updateCardStyles(selectedRadio.value);
+  })();
+</script>

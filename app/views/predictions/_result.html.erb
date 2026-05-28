@@ -1,0 +1,215 @@
+<%# app/views/predictions/_result.html.erb %>
+<% coverage  = result["gene_coverage"] %>
+<% pop_curve = analysis.result["survival_curve"] %>
+<% predicted_days = result["predicted_days"] %>
+<% out_of_range = result["out_of_range"] %>
+<% min_t = result["min_observed_time"] %>
+<% max_t = result["max_observed_time"] %>
+<% clinical = result["clinical"] || {} %>
+
+<% model_type = result["model_type"] || "ridge" %>
+
+<%# Если прогноз вышел за пределы наблюдённого диапазона — это экстраполяция;
+    показываем границу вместо точной цифры, но raw-значение остаётся в JSON. %>
+<% display_days =
+     if out_of_range && max_t && predicted_days > max_t
+       "> #{max_t.to_i}"
+     elsif out_of_range && min_t && predicted_days < min_t
+       "< #{min_t.to_i}"
+     else
+       predicted_days
+     end %>
+
+<div class="card mb-3">
+  <div class="card-body text-center">
+    <div class="mb-2">
+      <span class="badge bg-secondary"><%= t("analyses.show.model.#{model_type}") %></span>
+      <% if model_type == "cox" && result["risk_score"] %>
+        <span class="badge bg-light text-dark ms-1">
+          <%= t("predictions.risk_score") %>: <%= result["risk_score"] %>
+        </span>
+      <% end %>
+    </div>
+    <div class="stat-value" style="font-size: 2.5rem;"><%= display_days %></div>
+    <div class="stat-label">
+      <%= t(model_type == "cox" ? "predictions.predicted_median_days" : "predictions.predicted_days") %>
+    </div>
+    <div class="text-muted small mt-1">
+      ≈ <%= result["predicted_years"] %> <%= t("predictions.years") %>
+    </div>
+    <% if out_of_range && min_t && max_t %>
+      <div class="alert alert-warning small mt-3 mb-0">
+        <%= t("predictions.out_of_range",
+              min: min_t.to_i, max: max_t.to_i) %>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header"><%= t("predictions.input_summary") %></div>
+  <div class="card-body small">
+    <div><strong><%= t("predictions.age") %>:</strong> <%= clinical[:age] || clinical["age"] %></div>
+    <div><strong><%= t("predictions.gender") %>:</strong>
+      <%= t("predictions.genders.#{clinical[:gender] || clinical["gender"]}", default: "—") %>
+    </div>
+    <div><strong><%= t("predictions.stage") %>:</strong>
+      <%= (clinical[:stage] || clinical["stage"]).to_s.sub("stage_", "Stage ").upcase.then { |s| s == "UNKNOWN" ? t("predictions.stage_unknown") : s } %>
+    </div>
+  </div>
+</div>
+
+<% patient_curve = result["patient_survival_curve"] %>
+<% milestones = result["survival_at_milestones"] || [] %>
+
+<div class="card mb-3">
+  <div class="card-header">
+    <%= model_type == "cox" && patient_curve ? t("predictions.individual_curve") : t("predictions.curve_position") %>
+  </div>
+  <div class="card-body">
+    <div id="predictionCurveChart" style="height: 360px;"></div>
+    <p class="text-muted small mb-0 mt-2">
+      <%= model_type == "cox" && patient_curve ? t("predictions.individual_curve_hint") : t("predictions.curve_hint") %>
+    </p>
+  </div>
+</div>
+
+<% if milestones.any? %>
+  <div class="card mb-3">
+    <div class="card-header"><%= t("predictions.milestones_title") %></div>
+    <div class="card-body p-0">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th><%= t("predictions.milestone_term") %></th>
+            <th><%= t("predictions.milestone_patient") %></th>
+            <th><%= t("predictions.milestone_cohort") %></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% milestones.each do |m| %>
+            <tr>
+              <td><%= t("predictions.years_count", count: m["years"]) %></td>
+              <td><strong><%= "#{(m["patient"] * 100).round(1)}%" %></strong></td>
+              <td class="text-muted"><%= "#{(m["cohort"] * 100).round(1)}%" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+<% end %>
+
+<div class="card mb-3">
+  <div class="card-header"><%= t("predictions.gene_coverage") %></div>
+  <div class="card-body">
+    <p class="mb-1">
+      <strong><%= coverage["found"] %></strong> / <%= coverage["total"] %>
+      <%= t("predictions.genes_found") %>
+    </p>
+    <% if coverage["missing"].any? %>
+      <details>
+        <summary class="text-warning small"><%= t("predictions.missing_genes", count: coverage["missing"].length) %></summary>
+        <div class="mt-2 small text-muted" style="max-height: 150px; overflow-y: auto;">
+          <%= coverage["missing"].join(", ") %>
+        </div>
+      </details>
+    <% else %>
+      <div class="text-success small"><%= t("predictions.all_genes_found") %></div>
+    <% end %>
+  </div>
+</div>
+
+<script>
+  (() => {
+    const predicted   = <%= predicted_days %>;
+    const outOfRange  = <%= out_of_range ? "true" : "false" %>;
+    const isCox       = "<%= model_type %>" === "cox";
+    const patientCurve = <%= (patient_curve || []).to_json.html_safe %>;
+
+    const I18N = {
+      population: "<%= t('analyses.show.population') %>",
+      patient:    "<%= t('predictions.patient') %>",
+      days:       "<%= t('analyses.show.days') %>",
+      survival:   "<%= t('analyses.show.survival_probability') %>",
+      median:     "<%= t('predictions.median_label') %>",
+      outRange:   "<%= t('predictions.out_of_range_short') %>"
+    };
+
+    let traces;
+
+    if (isCox && patientCurve.length) {
+      // Cox: S(t|x) пациента (жирная красная) + S₀(t) когорты (пунктирная серая) +
+      // горизонталь S=0.5 + маркер медианы.
+      const xs = patientCurve.map(p => p.time);
+      const yPatient = patientCurve.map(p => p.s_patient);
+      const yCohort  = patientCurve.map(p => p.s0);
+
+      traces = [
+        {
+          type: "scatter", mode: "lines", name: I18N.population + " (S₀)",
+          x: xs, y: yCohort,
+          line: { color: "#a1a1aa", shape: "hv", dash: "dot", width: 1.5 }
+        },
+        {
+          type: "scatter", mode: "lines", name: I18N.patient + " S(t|x)",
+          x: xs, y: yPatient,
+          line: { color: outOfRange ? "#f59e0b" : "#ef4444", shape: "hv", width: 2.5 },
+          hovertemplate: `<b>%{x} ${I18N.days}</b><br>S(t|x) = %{y:.3f}<extra></extra>`
+        },
+        {
+          // Маркер медианы — там, где S(t|x) пересекает 0.5
+          type: "scatter", mode: "markers", name: I18N.median,
+          x: [Math.min(predicted, xs[xs.length - 1])], y: [0.5],
+          marker: {
+            color: outOfRange ? "#f59e0b" : "#ef4444",
+            size: 12, symbol: outOfRange ? "diamond-open" : "diamond"
+          },
+          hovertemplate: `<b>${predicted} ${I18N.days}</b><br>S = 0.5<extra></extra>`
+        }
+      ];
+
+    } else {
+      // Ridge fallback: KM кривая когорты + маркер прогноза.
+      const curve = <%= pop_curve.to_json.html_safe %>;
+      function survivalAt(days) {
+        let s = 1.0;
+        for (const pt of curve) { if (pt.time > days) break; s = pt.survival; }
+        return s;
+      }
+      const maxT = curve.length ? curve[curve.length - 1].time : predicted;
+      const markerX = Math.min(predicted, maxT);
+      const markerY = survivalAt(markerX);
+
+      traces = [
+        {
+          type: "scatter", mode: "lines", name: I18N.population,
+          x: curve.map(p => p.time), y: curve.map(p => p.survival),
+          line: { color: "#6366f1", shape: "hv" }
+        },
+        {
+          type: "scatter", mode: "markers",
+          name: outOfRange ? `${I18N.patient} (${I18N.outRange})` : I18N.patient,
+          x: [markerX], y: [markerY],
+          marker: {
+            color: outOfRange ? "#f59e0b" : "#ef4444",
+            size: 14, symbol: outOfRange ? "diamond-open" : "diamond"
+          },
+          hovertemplate: `<b>${predicted} ${I18N.days}</b><br>S = ${markerY.toFixed(3)}<extra></extra>`
+        }
+      ];
+    }
+
+    Plotly.newPlot("predictionCurveChart", traces, {
+      xaxis: { title: I18N.days },
+      yaxis: { title: I18N.survival, range: [0, 1.05] },
+      margin: { t: 20, r: 20 },
+      shapes: isCox && patientCurve.length ? [{
+        // Горизонталь на уровне 50% выживаемости — для зрительного нахождения медианы
+        type: "line", x0: 0, x1: 1, xref: "paper",
+        y0: 0.5, y1: 0.5, yref: "y",
+        line: { color: "#cbd5e1", width: 1, dash: "dash" }
+      }] : []
+    }, { responsive: true });
+  })();
+</script>

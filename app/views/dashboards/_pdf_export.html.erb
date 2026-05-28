@@ -1,0 +1,44 @@
+<div id="<%= dom_id(dashboard, :pdf_export) %>" class="card chart-card mt-4">
+  <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div>
+      <h5 class="mb-1"><%= t("dashboards.pdf.title") %></h5>
+      <p class="mb-0 text-muted small">
+        <% case dashboard.pdf_status %>
+        <% when "generating" %>
+          <%= t("dashboards.pdf.generating_hint") %>
+        <% when "ready" %>
+          <%= t("dashboards.pdf.ready_hint", time: l(dashboard.pdf_generated_at, format: :short)) %>
+        <% when "error" %>
+          <span class="text-danger"><%= t("dashboards.pdf.error_hint", message: dashboard.pdf_error) %></span>
+        <% else %>
+          <%= t("dashboards.pdf.idle_hint") %>
+        <% end %>
+      </p>
+    </div>
+
+    <div class="d-flex align-items-center gap-2">
+      <% if dashboard.pdf_generating? %>
+        <span class="d-inline-flex align-items-center gap-2 text-primary">
+          <span class="spinner-border spinner-border-sm" role="status"></span>
+          <span class="small"><%= t("dashboards.pdf.generating") %></span>
+        </span>
+      <% else %>
+        <% if dashboard.pdf_ready? %>
+          <%= link_to t("dashboards.pdf.download"),
+              download_pdf_dashboard_path(dashboard),
+              class: "btn btn-success" %>
+        <% end %>
+
+        <%= form_with url: export_pdf_dashboard_path(dashboard),
+                      method: :post,
+                      data: { controller: "pdf-export", action: "submit->pdf-export#capture" },
+                      class: "d-inline" do |f| %>
+          <%= f.hidden_field :heatmap_png, data: { "pdf-export-target": "heatmapField" } %>
+          <%= f.submit (dashboard.pdf_ready? ? t("dashboards.pdf.regenerate") : t("dashboards.pdf.generate")),
+              class: "btn #{dashboard.pdf_ready? ? 'btn-outline-primary' : 'btn-primary'}",
+              data: { turbo_submits_with: t("dashboards.pdf.generating") } %>
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+</div>
